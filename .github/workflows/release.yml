@@ -28,11 +28,7 @@ jobs:
       shell: pwsh
       run: |
         $xml = [xml](Get-Content src/Steam++/Steam++.csproj)
-        $version = $xml.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -ExpandProperty Version
-        # If there are multiple PropertyGroups and one has Version, this should grab it. 
-        # If the Version element has a Condition attribute, .NET XML parser usually just gives the text content for the property.
-        # Let's be safe and trim it.
-        $version = $version.Trim()
+        $version = $xml.SelectSingleNode("//Version").InnerText.Trim()
         echo "VERSION=$version" >> $env:GITHUB_ENV
         Write-Host "Detected version: $version"
 
