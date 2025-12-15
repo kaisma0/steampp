@@ -21,6 +21,8 @@ namespace SteamPP.ViewModels
         private readonly SettingsService _settingsService;
         private readonly CacheService _cacheService;
         private readonly NotificationService _notificationService;
+        private readonly SteamService _steamService;
+        private readonly FileInstallService _fileInstallService;
         private readonly SemaphoreSlim _iconLoadSemaphore = new SemaphoreSlim(10, 10); // Max 10 concurrent downloads
 
         [ObservableProperty]
@@ -77,13 +79,17 @@ namespace SteamPP.ViewModels
             DownloadService downloadService,
             SettingsService settingsService,
             CacheService cacheService,
-            NotificationService notificationService)
+            NotificationService notificationService,
+            SteamService steamService,
+            FileInstallService fileInstallService)
         {
             _manifestApiService = manifestApiService;
             _downloadService = downloadService;
             _settingsService = settingsService;
             _cacheService = cacheService;
             _notificationService = notificationService;
+            _steamService = steamService;
+            _fileInstallService = fileInstallService;
 
             // Auto-load games on startup
             _ = InitializeAsync();
@@ -512,15 +518,39 @@ namespace SteamPP.ViewModels
                 };
 
                 StatusMessage = $"Downloading: {game.GameName}";
-                var zipFilePath = await _downloadService.DownloadGameFileOnlyAsync(manifest, settings.DownloadsPath, settings.ApiKey);
 
-                StatusMessage = $"{game.GameName} downloaded successfully";
+                var steamPath = settings.SteamPath;
+                if (string.IsNullOrEmpty(steamPath))
+                {
+                    steamPath = _steamService.GetSteamPath();
+                }
 
-                MessageBoxHelper.Show(
-                    $"{game.GameName} has been downloaded!\n\nGo to the Downloads page to install it.",
-                    "Download Complete",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                if (!string.IsNullOrEmpty(steamPath) && System.IO.Directory.Exists(steamPath))
+                {
+                    await _downloadService.DownloadGameAsync(manifest, settings.DownloadsPath, settings.ApiKey, steamPath);
+                    
+                    // Auto-enable updates if configured (SteamTools mode only)
+                    _fileInstallService.TryAutoEnableUpdates(game.GameId);
+
+                    StatusMessage = $"{game.GameName} downloaded and installed successfully";
+
+                    MessageBoxHelper.Show(
+                        $"{game.GameName} has been downloaded and installed!",
+                        "Installation Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                else
+                {
+                    var zipFilePath = await _downloadService.DownloadGameFileOnlyAsync(manifest, settings.DownloadsPath, settings.ApiKey);
+                    StatusMessage = $"{game.GameName} downloaded successfully";
+
+                    MessageBoxHelper.Show(
+                        $"{game.GameName} has been downloaded!\n\nGo to the Downloads page to install it manually or configure Steam Path in settings.",
+                        "Download Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
             }
             catch (System.Exception ex)
             {

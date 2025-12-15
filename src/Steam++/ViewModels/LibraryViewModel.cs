@@ -437,13 +437,15 @@ namespace SteamPP.ViewModels
                 _logger.Info("Performing full library scan");
                 _allItems.Clear();
 
+                // Get existing items from DB to preserve icon paths and for validation
+                var iconCache = _dbService.GetKnownIconPaths();
+
                 // Validate and clean up deleted Lua files from database
                 var stpluginPath = _steamService.GetStPluginPath();
                 if (!string.IsNullOrEmpty(stpluginPath))
                 {
-                    var dbItems = _dbService.GetAllLibraryItems();
-
                     // Validate Lua files
+                    var dbItems = _dbService.GetAllLibraryItems();
                     foreach (var item in dbItems.Where(i => i.ItemType == LibraryItemType.Lua))
                     {
                         var luaFile = Path.Combine(stpluginPath, $"{item.AppId}.lua");
@@ -478,6 +480,7 @@ namespace SteamPP.ViewModels
 
                     if (!string.IsNullOrEmpty(greenLumaAppListPath))
                     {
+                        // Re-fetch items if needed or use existing list if we kept it
                         foreach (var item in dbItems.Where(i => i.ItemType == LibraryItemType.GreenLuma))
                         {
                             var appListFile = Path.Combine(greenLumaAppListPath, item.AppId);
@@ -537,51 +540,17 @@ namespace SteamPP.ViewModels
                         }
 
                         var item = LibraryItem.FromGame(mod);
+                        if (iconCache.TryGetValue(item.AppId, out var cachedPath) && File.Exists(cachedPath))
+                        {
+                            item.CachedIconPath = cachedPath;
+                        }
                         _allItems.Add(item);
                     }
                 }
 
                 // Load icons in background with throttling
-                _ = Task.Run(async () =>
-                {
-                    var semaphore = new System.Threading.SemaphoreSlim(5, 5); // Limit to 5 concurrent downloads
-                    var tasks = _allItems.Where(i => i.ItemType == LibraryItemType.Lua).Select(async item =>
-                    {
-                        await semaphore.WaitAsync();
-                        try
-                        {
-                            _logger.Info($"Loading icon for {item.Name} (AppId: {item.AppId})");
-                            var cdnIconUrl = _steamGamesService.GetSteamCdnIconUrl(item.AppId);
-                            _logger.Debug($"Using CDN URL: {cdnIconUrl}");
-
-                            var iconPath = await _cacheService.GetSteamGameIconAsync(item.AppId, null, cdnIconUrl);
-
-                            if (!string.IsNullOrEmpty(iconPath))
-                            {
-                                _logger.Info($"✓ Icon loaded successfully for {item.Name}: {iconPath}");
-                                Application.Current.Dispatcher.Invoke(() =>
-                                {
-                                    item.CachedIconPath = iconPath;
-                                });
-                                _dbService.UpdateIconPath(item.AppId, iconPath);
-                            }
-                            else
-                            {
-                                _logger.Warning($"✗ Failed to load icon for {item.Name} - No path returned");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.Error($"✗ Exception loading icon for {item.Name}: {ex.Message}");
-                        }
-                        finally
-                        {
-                            semaphore.Release();
-                        }
-                    });
-
-                    await Task.WhenAll(tasks);
-                });
+                var luaItems = _allItems.Where(i => i.ItemType == LibraryItemType.Lua).ToList();
+                _ = LoadIconsForItemsAsync(luaItems);
 
                 // Load GreenLuma games (only in GreenLuma mode)
                 if (settings.Mode == ToolMode.GreenLuma)
@@ -617,40 +586,17 @@ namespace SteamPP.ViewModels
                                 }
 
                                 var item = LibraryItem.FromGreenLumaGame(glGame);
+                                if (iconCache.TryGetValue(item.AppId, out var cachedPath) && File.Exists(cachedPath))
+                                {
+                                    item.CachedIconPath = cachedPath;
+                                }
                                 _allItems.Add(item);
                             }
                         }
 
                         // Load GreenLuma game icons in background
-                        _ = Task.Run(async () =>
-                        {
-                            var semaphore = new System.Threading.SemaphoreSlim(5, 5);
-                            var tasks = _allItems.Where(i => i.ItemType == LibraryItemType.GreenLuma).Select(async item =>
-                            {
-                                await semaphore.WaitAsync();
-                                try
-                                {
-                                    var cdnIconUrl = _steamGamesService.GetSteamCdnIconUrl(item.AppId);
-                                    var iconPath = await _cacheService.GetSteamGameIconAsync(item.AppId, null, cdnIconUrl);
-
-                                    if (!string.IsNullOrEmpty(iconPath))
-                                    {
-                                        Application.Current.Dispatcher.Invoke(() =>
-                                        {
-                                            item.CachedIconPath = iconPath;
-                                        });
-                                        _dbService.UpdateIconPath(item.AppId, iconPath);
-                                    }
-                                }
-                                catch { }
-                                finally
-                                {
-                                    semaphore.Release();
-                                }
-                            });
-
-                            await Task.WhenAll(tasks);
-                        });
+                        var glItems = _allItems.Where(i => i.ItemType == LibraryItemType.GreenLuma).ToList();
+                        _ = LoadIconsForItemsAsync(glItems);
                     }
                     catch (Exception ex)
                     {
@@ -677,41 +623,17 @@ namespace SteamPP.ViewModels
                         if (!luaAppIds.Contains(steamGame.AppId))
                         {
                             var item = LibraryItem.FromSteamGame(steamGame);
+                            if (iconCache.TryGetValue(item.AppId, out var cachedPath) && File.Exists(cachedPath))
+                            {
+                                item.CachedIconPath = cachedPath;
+                            }
                             _allItems.Add(item);
                         }
                     }
 
                     // Load Steam game icons in background with throttling
-                    _ = Task.Run(async () =>
-                    {
-                        var semaphore = new System.Threading.SemaphoreSlim(5, 5);
-                        var tasks = _allItems.Where(i => i.ItemType == LibraryItemType.SteamGame).Select(async item =>
-                        {
-                            await semaphore.WaitAsync();
-                            try
-                            {
-                                var localIconPath = _steamGamesService.GetLocalIconPath(item.AppId);
-                                var cdnIconUrl = _steamGamesService.GetSteamCdnIconUrl(item.AppId);
-                                var iconPath = await _cacheService.GetSteamGameIconAsync(item.AppId, localIconPath, cdnIconUrl);
-
-                                Application.Current.Dispatcher.Invoke(() =>
-                                {
-                                    item.CachedIconPath = iconPath;
-                                });
-                                if (!string.IsNullOrEmpty(iconPath))
-                                {
-                                    _dbService.UpdateIconPath(item.AppId, iconPath);
-                                }
-                            }
-                            catch { }
-                            finally
-                            {
-                                semaphore.Release();
-                            }
-                        });
-
-                        await Task.WhenAll(tasks);
-                    });
+                    var steamItems = _allItems.Where(i => i.ItemType == LibraryItemType.SteamGame).ToList();
+                    _ = LoadIconsForItemsAsync(steamItems);
                 }
                 catch (Exception ex)
                 {
@@ -729,12 +651,13 @@ namespace SteamPP.ViewModels
                 StatusMessage = $"{_allItems.Count} item(s) loaded";
 
                 // Save to database in background (don't block UI)
+                var itemsToSave = _allItems.ToList();
                 _ = Task.Run(() =>
                 {
                     try
                     {
-                        _logger.Info($"Saving {_allItems.Count} items to database");
-                        _dbService.BulkUpsertLibraryItems(_allItems);
+                        _logger.Info($"Saving {itemsToSave.Count} items to database");
+                        _dbService.BulkUpsertLibraryItems(itemsToSave);
                         _logger.Info("Database save complete");
                     }
                     catch (Exception ex)
@@ -752,6 +675,58 @@ namespace SteamPP.ViewModels
                 IsLoading = false;
                 _ = CheckForUpdatesAsync();
             }
+        }
+
+        private async Task LoadIconsForItemsAsync(List<LibraryItem> items)
+        {
+            if (items == null || items.Count == 0) return;
+
+            await Task.Run(async () =>
+            {
+                var semaphore = new System.Threading.SemaphoreSlim(5, 5); // Limit to 5 concurrent downloads
+                var tasks = items.Select(async item =>
+                {
+                    await semaphore.WaitAsync();
+                    try
+                    {
+                        // Skip if we already have a valid icon path
+                        if (!string.IsNullOrEmpty(item.CachedIconPath) && File.Exists(item.CachedIconPath))
+                        {
+                            return;
+                        }
+
+                        _logger.Info($"Loading icon for {item.Name} (AppId: {item.AppId})");
+                        var cdnIconUrl = _steamGamesService.GetSteamCdnIconUrl(item.AppId);
+                        var localIconPath = item.ItemType == LibraryItemType.SteamGame ? _steamGamesService.GetLocalIconPath(item.AppId) : null;
+
+                        var iconPath = await _cacheService.GetSteamGameIconAsync(item.AppId, localIconPath, cdnIconUrl);
+
+                        if (!string.IsNullOrEmpty(iconPath))
+                        {
+                            _logger.Info($"✓ Icon loaded successfully for {item.Name}: {iconPath}");
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                item.CachedIconPath = iconPath;
+                            });
+                            _dbService.UpdateIconPath(item.AppId, iconPath);
+                        }
+                        else
+                        {
+                            _logger.Warning($"✗ Failed to load icon for {item.Name} - No path returned");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error($"✗ Exception loading icon for {item.Name}: {ex.Message}");
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                });
+
+                await Task.WhenAll(tasks);
+            });
         }
 
         private async Task LoadMissingIconsAsync()
@@ -1571,6 +1546,9 @@ namespace SteamPP.ViewModels
                     File.Copy(luaFile, destPath, true);
                     copiedCount++;
                     installedAppIds.Add(appId);
+
+                    // Auto-enable updates if configured (SteamTools mode only)
+                    _fileInstallService.TryAutoEnableUpdates(appId);
                 }
 
                 // Cleanup temp directories
@@ -1812,11 +1790,13 @@ namespace SteamPP.ViewModels
         {
             try
             {
-                _logger.Info($"Starting image caching for {_allItems.Count} library items...");
+                // Create a snapshot of items to avoid collection modification errors
+                var itemsSnapshot = _allItems.ToList();
+                _logger.Info($"Starting image caching for {itemsSnapshot.Count} library items...");
 
                 var imagesToCache = new Dictionary<string, string>();
 
-                foreach (var item in _allItems)
+                foreach (var item in itemsSnapshot)
                 {
                     if (!string.IsNullOrEmpty(item.CachedIconPath) && File.Exists(item.CachedIconPath))
                     {
@@ -1830,9 +1810,10 @@ namespace SteamPP.ViewModels
                 await _imageCacheService.PreloadImagesAsync(imagesToCache);
 
                 // Update LibraryItem.CachedBitmapImage properties on UI thread
-                await Application.Current.Dispatcher.InvokeAsync(async () =>
+                await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    foreach (var item in _allItems)
+                    // Re-iterate over the snapshot, but update the live objects (which are the same references)
+                    foreach (var item in itemsSnapshot)
                     {
                         if (imagesToCache.ContainsKey(item.AppId))
                         {

@@ -196,6 +196,34 @@ namespace SteamPP.Services
             return null;
         }
 
+        public Dictionary<string, string> GetKnownIconPaths()
+        {
+            var iconPaths = new Dictionary<string, string>();
+            try
+            {
+                using var connection = CreateConnection();
+                using var command = connection.CreateCommand();
+
+                command.CommandText = "SELECT AppId, CachedIconPath FROM LibraryItems WHERE CachedIconPath IS NOT NULL AND CachedIconPath != ''";
+
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    var appId = reader.GetString(0);
+                    var path = reader.GetString(1);
+                    if (!iconPaths.ContainsKey(appId))
+                    {
+                        iconPaths[appId] = path;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error($"Failed to get known icon paths: {ex.Message}");
+            }
+            return iconPaths;
+        }
+
         public void UpdateIconPath(string appId, string iconPath)
         {
             try

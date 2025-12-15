@@ -651,6 +651,9 @@ namespace SteamPP.ViewModels
                     // Extract appId from filename and notify library
                     var appId = Path.GetFileNameWithoutExtension(SelectedFilePath);
                     _libraryRefreshService.NotifyGameInstalled(appId, settings.Mode == ToolMode.GreenLuma);
+
+                    // Auto-enable updates if configured (SteamTools mode only)
+                    _fileInstallService.TryAutoEnableUpdates(appId);
                 }
                 else if (SelectedFilePath.EndsWith(".manifest", StringComparison.OrdinalIgnoreCase))
                 {
@@ -713,6 +716,7 @@ namespace SteamPP.ViewModels
                             await _fileInstallService.InstallFromZipAsync(file, false, msg => StatusMessage = msg);
                             installedAppIds.Add(appId);
                             successCount++;
+                            _fileInstallService.TryAutoEnableUpdates(appId);
                         }
                         else if (file.EndsWith(".lua", StringComparison.OrdinalIgnoreCase))
                         {
@@ -720,6 +724,7 @@ namespace SteamPP.ViewModels
                             var appId = Path.GetFileNameWithoutExtension(file);
                             installedAppIds.Add(appId);
                             successCount++;
+                            _fileInstallService.TryAutoEnableUpdates(appId);
                         }
                         else if (file.EndsWith(".manifest", StringComparison.OrdinalIgnoreCase))
                         {
