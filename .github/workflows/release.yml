@@ -1,0 +1,54 @@
+name: Release Automation
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: 'Release Notes'
+        required: true
+        default: 'New release'
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Get Version from csproj
+      id: get_version
+      shell: pwsh
+      run: |
+        $xml = [xml](Get-Content src/Steam++/Steam++.csproj)
+        $version = $xml.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -ExpandProperty Version
+        # If there are multiple PropertyGroups and one has Version, this should grab it. 
+        # If the Version element has a Condition attribute, .NET XML parser usually just gives the text content for the property.
+        # Let's be safe and trim it.
+        $version = $version.Trim()
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+        Write-Host "Detected version: $version"
+
+    - name: Build and Publish
+      run: |
+        dotnet publish src/Steam++/Steam++.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ env.VERSION }}
+        name: ${{ env.VERSION }}
+        body: ${{ github.event.inputs.release_notes }}
+        draft: false
+        prerelease: false
+        files: |
+          bin/Release/win-x64/publish/Steam++.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
