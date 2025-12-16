@@ -20,6 +20,9 @@ namespace SteamPP.ViewModels
         [ObservableProperty]
         private string _outputPath = string.Empty;
 
+        [ObservableProperty]
+        private bool _isDenuvo;
+
         public GBEDenuvoViewModel()
         {
             _settingsService = new SettingsService();
@@ -32,7 +35,7 @@ namespace SteamPP.ViewModels
         }
 
         [ObservableProperty]
-        private string _logOutput = "Ready to generate tokens. Make sure Steam is running and you own the game.\n";
+        private string _logOutput = "Ready to generate GBE configuration.\n";
 
         [ObservableProperty]
         private bool _isGenerating;
@@ -93,12 +96,12 @@ namespace SteamPP.ViewModels
 
             try
             {
-                Log("Starting token generation...");
+                Log("Starting GBE configuration generation...");
                 Log($"App ID: {appIdInt}");
                 Log($"Output: {OutputPath}\n");
 
-                string finalZipPath = Path.Combine(OutputPath, $"Token [{appIdInt}].zip");
-                var generator = new GoldbergLogic(appIdInt, finalZipPath, settings.GBESteamWebApiKey, (message, isError) =>
+                string finalZipPath = Path.Combine(OutputPath, $"gbe [{appIdInt}].zip");
+                var generator = new GoldbergLogic(appIdInt, finalZipPath, settings.GBESteamWebApiKey, IsDenuvo, (message, isError) =>
                 {
                     Application.Current.Dispatcher.Invoke(() => Log(message, isError));
                 });
@@ -108,7 +111,7 @@ namespace SteamPP.ViewModels
                 if (success)
                 {
                     Log($"\n✓ Archive created successfully at: {finalZipPath}");
-                    MessageBox.Show($"Token generated successfully!\n\nSaved to: {finalZipPath}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show($"GBE configuration generated successfully!\n\nSaved to: {finalZipPath}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
                 {

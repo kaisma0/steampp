@@ -5,13 +5,13 @@
         <StackPanel Margin="20" MaxWidth="700" HorizontalAlignment="Left">
 
                 <!-- Title -->
-                <TextBlock Text="GBE Token Generator"
+                <TextBlock Text="GBE Configuration Generator"
                            FontSize="24"
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource TextPrimaryBrush}"
                            Margin="0,0,0,20"/>
 
-                <TextBlock Text="Generate Goldberg Emulator tokens for games. This requires Steam to be running and the game to be owned by the logged-in account."
+                <TextBlock Text="Generate Goldberg Emulator configuration for games. Denuvo games require Steam to be running and the game to be owned by the logged-in account."
                            Foreground="{DynamicResource TextSecondaryBrush}"
                            FontSize="13"
                            TextWrapping="Wrap"
@@ -64,8 +64,15 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Denuvo Option -->
+                <CheckBox Content="Generate Denuvo Ticket (Requires Steam running)"
+                          IsChecked="{Binding IsDenuvo}"
+                          Foreground="{DynamicResource TextPrimaryBrush}"
+                          Margin="0,0,0,15"
+                          FontSize="14"/>
+
                 <!-- Generate Button -->
-                <Button Content="🔑 Generate Token"
+                <Button Content="⚙️ Generate Configuration"
                         Command="{Binding GenerateTokenCommand}"
                         Style="{StaticResource ModernButtonStyle}"
                         Height="40"

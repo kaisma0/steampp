@@ -99,6 +99,17 @@ namespace SteamPP
 
         protected override async void OnStartup(StartupEventArgs e)
         {
+            // Check for CLI mode (Ticket Generation)
+            if (e.Args.Length >= 2 && e.Args[0] == "--generate-ticket")
+            {
+                if (int.TryParse(e.Args[1], out int appId))
+                {
+                    await SteamPP.Services.GBE.GoldbergLogic.RunTicketGenerationWorker(appId);
+                }
+                Shutdown();
+                return;
+            }
+
             // Register protocol (will update if path changed)
             ProtocolRegistrationHelper.RegisterProtocol();
 

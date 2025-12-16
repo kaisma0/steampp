@@ -20,17 +20,19 @@ namespace SteamPP.Services.GBE
         private readonly int _appId;
         private readonly string _outputPath;
         private readonly string _apiKey;
+        private readonly bool _isDenuvo;
         private readonly Action<string, bool> _log;
         private static readonly HttpClient HttpClient = new HttpClient()
         {
             Timeout = TimeSpan.FromSeconds(30)
         };
 
-        public GoldbergLogic(int appId, string outputPath, string apiKey, Action<string, bool> logAction)
+        public GoldbergLogic(int appId, string outputPath, string apiKey, bool isDenuvo, Action<string, bool> logAction)
         {
             _appId = appId;
             _outputPath = outputPath;
             _apiKey = apiKey;
+            _isDenuvo = isDenuvo;
             _log = logAction;
         }
 
@@ -44,11 +46,18 @@ namespace SteamPP.Services.GBE
             {
                 Directory.CreateDirectory(settingsPath);
 
-                var ticketResult = await GenerateTicketAsync(settingsPath);
-                if (!ticketResult.Success)
+                if (_isDenuvo)
                 {
-                    _log("Aborting Goldberg setup due to ticket generation failure.", true);
-                    return false;
+                    var ticketResult = await GenerateTicketAsync(settingsPath);
+                    if (!ticketResult.Success)
+                    {
+                        _log("Aborting Goldberg setup due to ticket generation failure.", true);
+                        return false;
+                    }
+                }
+                else
+                {
+                    _log("Skipping Denuvo ticket generation.", false);
                 }
 
                 _log("\n--- Generating Config Files ---", false);
@@ -86,30 +95,94 @@ namespace SteamPP.Services.GBE
 
         private async Task<(bool Success, string? Ticket, ulong SteamId)> GenerateTicketAsync(string settingsPath)
         {
-            string tempLibDir = Path.Combine(Path.GetTempPath(), "GBE_Temp_" + Path.GetRandomFileName());
+            _log("Launching separate process for ticket generation...", false);
+
+            string exePath = Environment.ProcessPath ?? string.Empty;
+            if (string.IsNullOrEmpty(exePath))
+            {
+                _log("Could not determine executable path.", true);
+                return (false, null, 0);
+            }
+
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = exePath,
+                Arguments = $"--generate-ticket {_appId}",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            try
+            {
+                using var process = System.Diagnostics.Process.Start(startInfo);
+                if (process == null)
+                {
+                    _log("Failed to start ticket generation process.", true);
+                    return (false, null, 0);
+                }
+
+                string output = await process.StandardOutput.ReadToEndAsync();
+                await process.WaitForExitAsync();
+
+                if (output.StartsWith("SUCCESS:"))
+                {
+                    var parts = output.Trim().Split(':');
+                    if (parts.Length >= 3)
+                    {
+                        string ticket = parts[1];
+                        if (ulong.TryParse(parts[2], out ulong steamId))
+                        {
+                            _log("✓ Ticket generated successfully!", false);
+                            CreateUserConfig(settingsPath, steamId, ticket);
+                            return (true, ticket, steamId);
+                        }
+                    }
+                }
+
+                _log($"Ticket generation failed. Output: {output}", true);
+                return (false, null, 0);
+            }
+            catch (Exception ex)
+            {
+                _log($"Error running ticket generation process: {ex.Message}", true);
+                return (false, null, 0);
+            }
+        }
+
+        public static async Task RunTicketGenerationWorker(int appId)
+        {
+            // Use a stable path for the DLLs to avoid issues with repeated loading/unloading
+            string tempLibDir = Path.Combine(Path.GetTempPath(), "SteamPP", "GBE_Libs");
             Directory.CreateDirectory(tempLibDir);
 
             try
             {
-                // Extract DLLs from embedded resources to temp directory
-                ExtractEmbeddedResource("SteamPP.lib.gbe.steam_api64.dll", Path.Combine(tempLibDir, "steam_api64.dll"));
-                ExtractEmbeddedResource("SteamPP.lib.gbe.dependencies.steamclient64.dll", Path.Combine(tempLibDir, "steamclient64.dll"));
+                // Extract DLLs - try/catch in case they are already loaded and locked
+                try
+                {
+                    ExtractEmbeddedResource("SteamPP.lib.gbe.steam_api64.dll", Path.Combine(tempLibDir, "steam_api64.dll"));
+                    ExtractEmbeddedResource("SteamPP.lib.gbe.dependencies.steamclient64.dll", Path.Combine(tempLibDir, "steamclient64.dll"));
+                }
+                catch (IOException)
+                {
+                    // Files likely in use by this process from a previous run, which is fine
+                }
 
                 if (!SteamApi.SetDllDirectory(tempLibDir))
                 {
-                    _log("Failed to set DLL search directory.", true);
-                    return (false, null, 0);
+                    Console.WriteLine("ERROR:Failed to set DLL search directory.");
+                    return;
                 }
 
-                Environment.SetEnvironmentVariable("SteamAppId", _appId.ToString());
-                Environment.SetEnvironmentVariable("SteamGameId", _appId.ToString());
+                Environment.SetEnvironmentVariable("SteamAppId", appId.ToString());
+                Environment.SetEnvironmentVariable("SteamGameId", appId.ToString());
 
                 if (SteamApi.SteamAPI_InitFlat(IntPtr.Zero) == 0)
                 {
                     IntPtr user = SteamApi.SteamAPI_SteamUser_v023();
                     if (user != IntPtr.Zero)
                     {
-                        _log("Requesting ticket from Steam...", false);
                         SteamApi.SteamAPI_ISteamUser_RequestEncryptedAppTicket(user, IntPtr.Zero, 0);
                         await Task.Delay(1500);
 
@@ -121,40 +194,26 @@ namespace SteamPP.Services.GBE
                             string ticketB64 = Convert.ToBase64String(actualTicket);
                             ulong steamId = SteamApi.SteamAPI_ISteamUser_GetSteamID(user);
 
-                            _log("✓ Ticket generated successfully!", false);
-                            CreateUserConfig(settingsPath, steamId, ticketB64);
-                            return (true, ticketB64, steamId);
+                            Console.WriteLine($"SUCCESS:{ticketB64}:{steamId}");
                         }
                         else
                         {
-                            _log("Failed to get encrypted app ticket.", true);
-                            _log("  This usually means the logged-in Steam account does not own the game.", true);
+                            Console.WriteLine("ERROR:Failed to get encrypted app ticket. This usually means the logged-in Steam account does not own the game.");
                         }
-                    } else { _log("Failed to get Steam user interface.", true); }
-                } else { _log("Steam API initialization failed.", true); _log("  Make sure Steam is running and you are logged in.", true); }
+                    }
+                    else { Console.WriteLine("ERROR:Failed to get Steam user interface."); }
+                }
+                else { Console.WriteLine("ERROR:Steam API initialization failed. Make sure Steam is running and you are logged in."); }
             }
             catch (Exception ex)
             {
-                _log($"An unexpected error occurred: {ex.Message}", true);
+                Console.WriteLine($"ERROR:An unexpected error occurred: {ex.Message}");
             }
             finally
             {
+                SteamApi.SteamAPI_Shutdown();
                 SteamApi.SetDllDirectory(null);
-
-                // Clean up temp directory
-                try
-                {
-                    if (Directory.Exists(tempLibDir))
-                    {
-                        Directory.Delete(tempLibDir, true);
-                    }
-                }
-                catch
-                {
-                    // Ignore cleanup errors - temp directory will be cleaned up by OS eventually
-                }
             }
-            return (false, null, 0);
         }
 
         private void CreateUserConfig(string settingsPath, ulong steamId, string ticket)

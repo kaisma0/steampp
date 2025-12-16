@@ -32,6 +32,9 @@ namespace SteamPP.Services.GBE
         public static extern bool SteamAPI_ISteamUser_GetEncryptedAppTicket(IntPtr self, [Out] byte[] pTicket, int cbMaxTicket, out uint pcbTicket);
 
         [DllImport(SteamApiDll, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SteamAPI_Shutdown();
+
+        [DllImport(SteamApiDll, CallingConvention = CallingConvention.Cdecl)]
         public static extern ulong SteamAPI_ISteamUser_GetSteamID(IntPtr self);
     }
 }
