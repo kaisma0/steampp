@@ -16,7 +16,7 @@ namespace SteamPP.Services
         private readonly Dictionary<string, BitmapImage> _imageCache = new();
         private readonly object _cacheLock = new object();
         private readonly LoggerService? _logger;
-        private const int MAX_CACHE_SIZE = 200; // Maximum number of images to cache
+        private const int MAX_CACHE_SIZE = 500; // Maximum number of images to cache
         private const int DECODE_PIXEL_WIDTH = 280; // Decode images at display size for memory optimization
 
         public ImageCacheService(LoggerService? logger = null)
