@@ -1,6 +1,6 @@
 using SteamPP.Models;
 using SteamPP.Views.Dialogs;
-using Newtonsoft.Json;
+using System.Text.Json;
 using System;
 using System.IO;
 using System.Windows;
@@ -60,7 +60,7 @@ namespace SteamPP.Helpers
                 if (File.Exists(settingsPath))
                 {
                     var json = File.ReadAllText(settingsPath);
-                    var settings = JsonConvert.DeserializeObject<AppSettings>(json);
+                    var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonHelper.Options);
                     return settings?.DisableAllNotifications ?? false;
                 }
             }

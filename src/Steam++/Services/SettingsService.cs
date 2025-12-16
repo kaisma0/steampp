@@ -1,6 +1,8 @@
 using SteamPP.Interfaces;
 using SteamPP.Models;
-using Newtonsoft.Json;
+using SteamPP.Helpers;
+using System.Text.Json;
+using System.Text.Encodings.Web;
 using System;
 using System.IO;
 
@@ -31,7 +33,7 @@ namespace SteamPP.Services
                 if (File.Exists(_settingsPath))
                 {
                     var json = File.ReadAllText(_settingsPath);
-                    _settings = JsonConvert.DeserializeObject<AppSettings>(json) ?? new AppSettings();
+                    _settings = JsonSerializer.Deserialize<AppSettings>(json, JsonHelper.Options) ?? new AppSettings();
                 }
                 else
                 {
@@ -79,7 +81,7 @@ namespace SteamPP.Services
             try
             {
                 _settings = settings;
-                var json = JsonConvert.SerializeObject(settings, Formatting.Indented);
+                var json = JsonSerializer.Serialize(settings, JsonHelper.Options);
 
                 // Write with explicit flush to disk
                 using (var fileStream = new FileStream(_settingsPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))

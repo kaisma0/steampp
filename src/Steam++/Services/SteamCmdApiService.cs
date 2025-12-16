@@ -1,4 +1,6 @@
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using SteamPP.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,70 +11,71 @@ namespace SteamPP.Services
 {
     public class SteamCmdDepotData
     {
-        [JsonProperty("data")]
+        [JsonPropertyName("data")]
         public Dictionary<string, AppData> Data { get; set; } = new();
 
-        [JsonProperty("status")]
+        [JsonPropertyName("status")]
         public string Status { get; set; } = "";
     }
 
     public class AppData
     {
-        [JsonProperty("depots")]
+        [JsonPropertyName("depots")]
         public Dictionary<string, DepotData> Depots { get; set; } = new();
 
-        [JsonProperty("common")]
+        [JsonPropertyName("common")]
         public CommonData Common { get; set; } = new();
     }
 
     public class CommonData
     {
-        [JsonProperty("name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; } = "";
     }
 
     public class DepotData
     {
-        [JsonProperty("config")]
+        [JsonPropertyName("config")]
         public DepotConfig? Config { get; set; }
 
-        [JsonProperty("manifests")]
+        [JsonPropertyName("manifests")]
         public Dictionary<string, ManifestData>? Manifests { get; set; }
 
-        [JsonProperty("dlcappid")]
+        [JsonPropertyName("dlcappid")]
         public string? DlcAppId { get; set; }
 
-        [JsonProperty("depotfromapp")]
+        [JsonPropertyName("depotfromapp")]
         public string? DepotFromApp { get; set; }
 
-        [JsonProperty("sharedinstall")]
+        [JsonPropertyName("sharedinstall")]
         public string? SharedInstall { get; set; }
     }
 
     public class DepotConfig
     {
-        [JsonProperty("oslist")]
+        [JsonPropertyName("oslist")]
         public string? OsList { get; set; }
 
-        [JsonProperty("language")]
+        [JsonPropertyName("language")]
         public string? Language { get; set; }
 
-        [JsonProperty("lowviolence")]
+        [JsonPropertyName("lowviolence")]
         public string? LowViolence { get; set; }
 
-        [JsonProperty("realm")]
+        [JsonPropertyName("realm")]
         public string? Realm { get; set; }
     }
 
     public class ManifestData
     {
-        [JsonProperty("gid")]
+        [JsonPropertyName("gid")]
+        [JsonConverter(typeof(SteamPP.Helpers.NumberToStringConverter))]
         public string? Gid { get; set; }
 
-        [JsonProperty("size")]
+        [JsonPropertyName("size")]
         public long Size { get; set; }
 
-        [JsonProperty("download")]
+        [JsonPropertyName("download")]
         public long Download { get; set; }
     }
 
@@ -101,7 +104,7 @@ namespace SteamPP.Services
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var data = JsonConvert.DeserializeObject<SteamCmdDepotData>(json);
+                var data = JsonSerializer.Deserialize<SteamCmdDepotData>(json, JsonHelper.Options);
 
                 return data;
             }

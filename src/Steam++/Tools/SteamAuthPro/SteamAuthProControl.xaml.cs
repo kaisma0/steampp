@@ -5,7 +5,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using SteamPP.Helpers;
 using SteamPP.Tools.SteamAuthPro.Models;
 using SteamPP.Tools.SteamAuthPro.Views;
@@ -288,7 +289,7 @@ namespace SteamPP.Tools.SteamAuthPro
             return (parts[0].Trim(), parts[1].Trim(), parts[2].Trim());
         }
 
-        private async Task<JObject> SubmitToApiAsync(string appId, string steamId, string ticketData, int usageLimit)
+        private async Task<JsonNode> SubmitToApiAsync(string appId, string steamId, string ticketData, int usageLimit)
         {
             using var client = new HttpClient();
 
@@ -313,24 +314,48 @@ namespace SteamPP.Tools.SteamAuthPro
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
-            return JObject.Parse(json);
+            return JsonNode.Parse(json, new JsonNodeOptions { PropertyNameCaseInsensitive = true }, new JsonDocumentOptions
+            {
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip
+            })!;
         }
 
-        private void HandleSuccess(JObject response)
+        private void HandleSuccess(JsonNode response)
         {
-            var success = response["success"]?.Value<bool>() ?? false;
+            bool success = false;
+            var successNode = response["success"];
+            if (successNode != null)
+            {
+                if (successNode.GetValueKind() == JsonValueKind.True || successNode.GetValueKind() == JsonValueKind.False)
+                    success = successNode.GetValue<bool>();
+                else if (successNode.GetValueKind() == JsonValueKind.String)
+                    bool.TryParse(successNode.GetValue<string>(), out success);
+                else if (successNode.GetValueKind() == JsonValueKind.Number)
+                    success = successNode.GetValue<int>() == 1;
+            }
+
             if (!success)
             {
-                var message = response["message"]?.Value<string>() ?? "Unknown error";
+                var message = response["message"]?.ToString() ?? "Unknown error";
                 throw new Exception($"API error: {message}");
             }
 
-            var data = response["data"] as JObject;
-            var authCode = data?["auth_code"]?.Value<string>() ?? "N/A";
-            var expiresIn = data?["expires_in"]?.Value<int>() ?? 1800;
-            var usageLimitText = data?["usage_limit_text"]?.Value<string>() ?? "N/A";
-            var steamId = data?["steamid"]?.Value<string>() ?? "N/A";
-            var appId = data?["appid"]?.Value<string>() ?? "N/A";
+            var data = response["data"];
+            var authCode = data?["auth_code"]?.ToString() ?? "N/A";
+            
+            int expiresIn = 1800;
+            var expiresNode = data?["expires_in"];
+            if (expiresNode != null)
+            {
+                if (expiresNode.GetValueKind() == JsonValueKind.Number)
+                    expiresIn = expiresNode.GetValue<int>();
+                else if (expiresNode.GetValueKind() == JsonValueKind.String && int.TryParse(expiresNode.GetValue<string>(), out var exp))
+                    expiresIn = exp;
+            }
+            var usageLimitText = data?["usage_limit_text"]?.GetValue<string>() ?? "N/A";
+            var steamId = data?["steamid"]?.GetValue<string>() ?? "N/A";
+            var appId = data?["appid"]?.GetValue<string>() ?? "N/A";
 
             var expirationTime = DateTime.Now.AddSeconds(expiresIn);
             var expirationStr = expirationTime.ToString("yyyy-MM-dd HH:mm:ss");

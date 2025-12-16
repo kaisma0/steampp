@@ -1,34 +1,34 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace SteamPP.Models
 {
     public class Manifest : INotifyPropertyChanged
     {
-        [JsonProperty("appid")]
+        [JsonPropertyName("appid")]
         public string AppId { get; set; } = string.Empty;
 
-        [JsonProperty("name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        [JsonProperty("description")]
+        [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 
-        [JsonProperty("version")]
+        [JsonPropertyName("version")]
         public string Version { get; set; } = "1.0";
 
-        [JsonProperty("size")]
+        [JsonPropertyName("size")]
         public long Size { get; set; }
 
-        [JsonProperty("icon_url")]
+        [JsonPropertyName("icon_url")]
         public string IconUrl { get; set; } = string.Empty;
 
-        [JsonProperty("last_updated")]
+        [JsonPropertyName("last_updated")]
         public DateTime? LastUpdated { get; set; }
 
-        [JsonProperty("download_url")]
+        [JsonPropertyName("download_url")]
         public string DownloadUrl { get; set; } = string.Empty;
 
         // Non-serialized property for cached icon path

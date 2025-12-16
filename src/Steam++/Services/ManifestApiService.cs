@@ -1,6 +1,9 @@
 using SteamPP.Interfaces;
 using SteamPP.Models;
-using Newtonsoft.Json;
+using SteamPP.Helpers;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Encodings.Web;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -45,7 +48,7 @@ namespace SteamPP.Services
 
                 try
                 {
-                    var manifest = JsonConvert.DeserializeObject<Manifest>(json);
+                    var manifest = JsonSerializer.Deserialize<Manifest>(json, JsonHelper.Options);
                     return manifest;
                 }
                 catch (JsonException jex)
@@ -74,7 +77,7 @@ namespace SteamPP.Services
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var results = JsonConvert.DeserializeObject<List<Manifest>>(json);
+                var results = JsonSerializer.Deserialize<List<Manifest>>(json, JsonHelper.Options);
                 return results;
             }
             catch (Exception ex)
@@ -97,7 +100,7 @@ namespace SteamPP.Services
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var results = JsonConvert.DeserializeObject<List<Manifest>>(json);
+                var results = JsonSerializer.Deserialize<List<Manifest>>(json, JsonHelper.Options);
                 return results;
             }
             catch (Exception ex)
@@ -136,7 +139,7 @@ namespace SteamPP.Services
                 {
                     try
                     {
-                        return JsonConvert.DeserializeObject<GameStatus>(cachedJson);
+                        return JsonSerializer.Deserialize<GameStatus>(cachedJson, JsonHelper.Options);
                     }
                     catch
                     {
@@ -157,7 +160,7 @@ namespace SteamPP.Services
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var status = JsonConvert.DeserializeObject<GameStatus>(json);
+                var status = JsonSerializer.Deserialize<GameStatus>(json, JsonHelper.Options);
 
                 // Cache the response
                 _cacheService?.CacheGameStatus(appId, json);
@@ -189,7 +192,7 @@ namespace SteamPP.Services
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var result = JsonConvert.DeserializeObject<LibraryResponse>(json);
+                var result = JsonSerializer.Deserialize<LibraryResponse>(json, JsonHelper.Options);
                 return result;
             }
             catch (Exception ex)
@@ -212,7 +215,7 @@ namespace SteamPP.Services
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var result = JsonConvert.DeserializeObject<SearchResponse>(json);
+                var result = JsonSerializer.Deserialize<SearchResponse>(json, JsonHelper.Options);
                 return result;
             }
             catch (Exception ex)

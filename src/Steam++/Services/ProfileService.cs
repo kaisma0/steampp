@@ -1,5 +1,7 @@
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Encodings.Web;
 using SteamPP.Models;
+using SteamPP.Helpers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -43,7 +45,7 @@ namespace SteamPP.Services
                 if (File.Exists(_profilesPath))
                 {
                     var json = File.ReadAllText(_profilesPath);
-                    _profileData = JsonConvert.DeserializeObject<ProfileData>(json) ?? new ProfileData();
+                    _profileData = JsonSerializer.Deserialize<ProfileData>(json, JsonHelper.Options) ?? new ProfileData();
                 }
                 else
                 {
@@ -80,7 +82,7 @@ namespace SteamPP.Services
                 if (_profileData == null)
                     return;
 
-                var json = JsonConvert.SerializeObject(_profileData, Formatting.Indented);
+                var json = JsonSerializer.Serialize(_profileData, JsonHelper.Options);
 
                 using (var fileStream = new FileStream(_profilesPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
                 using (var writer = new StreamWriter(fileStream))
@@ -473,7 +475,7 @@ namespace SteamPP.Services
 
                 using (var zipArchive = ZipFile.Open(filePath, ZipArchiveMode.Create))
                 {
-                    var json = JsonConvert.SerializeObject(export, Formatting.Indented);
+                    var json = JsonSerializer.Serialize(export, JsonHelper.Options);
                     var profileEntry = zipArchive.CreateEntry("profile.json");
                     using (var writer = new StreamWriter(profileEntry.Open()))
                     {
@@ -557,7 +559,7 @@ namespace SteamPP.Services
                         using (var reader = new StreamReader(profileEntry.Open()))
                         {
                             var json = reader.ReadToEnd();
-                            export = JsonConvert.DeserializeObject<ProfileExport>(json);
+                            export = JsonSerializer.Deserialize<ProfileExport>(json, JsonHelper.Options);
                         }
 
                         foreach (var entry in zipArchive.Entries)
@@ -577,7 +579,7 @@ namespace SteamPP.Services
                 else
                 {
                     var json = File.ReadAllText(filePath);
-                    export = JsonConvert.DeserializeObject<ProfileExport>(json);
+                    export = JsonSerializer.Deserialize<ProfileExport>(json, JsonHelper.Options);
                 }
 
                 if (export?.Profile == null)

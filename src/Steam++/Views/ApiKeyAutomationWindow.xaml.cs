@@ -1,4 +1,5 @@
 using Microsoft.Web.WebView2.Core;
+using SteamPP.Helpers;
 using System;
 using System.IO;
 using System.Text.Json;
@@ -260,7 +261,7 @@ namespace SteamPP.Views
                 {
                     try
                     {
-                        return JsonSerializer.Deserialize<string>(result);
+                        return JsonSerializer.Deserialize<string>(result, JsonHelper.Options);
                     }
                     catch
                     {

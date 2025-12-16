@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using SteamPP.Helpers;
 
 namespace SteamPP.Tools.SteamAuthPro.Models
 {
@@ -47,7 +49,7 @@ namespace SteamPP.Tools.SteamAuthPro.Models
                     return new Config();
 
                 var json = File.ReadAllText(ConfigFile);
-                var config = JsonConvert.DeserializeObject<Config>(json);
+                var config = JsonSerializer.Deserialize<Config>(json, JsonHelper.Options);
                 return config ?? new Config();
             }
             catch
@@ -66,7 +68,7 @@ namespace SteamPP.Tools.SteamAuthPro.Models
                     Directory.CreateDirectory(directory);
                 }
 
-                var json = JsonConvert.SerializeObject(this, Formatting.Indented);
+                var json = JsonSerializer.Serialize(this, JsonHelper.Options);
                 File.WriteAllText(ConfigFile, json);
             }
             catch

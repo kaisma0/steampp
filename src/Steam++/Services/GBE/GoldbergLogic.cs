@@ -1,5 +1,6 @@
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json.Nodes;
+using System.Text.Json;
+using System.Text.Encodings.Web;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,7 +9,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using SteamPP.Helpers;
 
 namespace SteamPP.Services.GBE
 {
@@ -184,23 +187,23 @@ namespace SteamPP.Services.GBE
             try
             {
                 var response = await HttpClient.GetStringAsync(url);
-                var data = JObject.Parse(response);
-                var achievements = data?["game"]?["availableGameStats"]?["achievements"];
+                var data = JsonNode.Parse(response);
+                var achievements = data?["game"]?["availableGameStats"]?["achievements"]?.AsArray();
 
-                if (achievements == null || !achievements.HasValues)
+                if (achievements == null || achievements.Count == 0)
                 {
                     _log("No achievements found for this App ID.", false);
                     return;
                 }
 
-                File.WriteAllText(achievementsJsonPath, achievements.ToString(Formatting.Indented));
-                _log($"✓ Saved {achievements.Count()} achievements", false);
+                File.WriteAllText(achievementsJsonPath, achievements.ToJsonString(JsonHelper.Options));
+                _log($"✓ Saved {achievements.Count} achievements", false);
 
                 foreach (var ach in achievements)
                 {
                     foreach (var iconKey in new[] { "icon", "icongray" })
                     {
-                        var iconUrl = (string?)ach[iconKey];
+                        var iconUrl = ach?[iconKey]?.GetValue<string>();
                         if (!string.IsNullOrEmpty(iconUrl))
                         {
                             var fileName = Path.GetFileName(iconUrl);
@@ -231,15 +234,15 @@ namespace SteamPP.Services.GBE
             try
             {
                 var response = await HttpClient.GetStringAsync(url);
-                var data = JObject.Parse(response);
-                var depots = data?["data"]?[_appId.ToString()]?["depots"] as JObject;
+                var data = JsonNode.Parse(response);
+                var depots = data?["data"]?[_appId.ToString()]?["depots"]?.AsObject();
                 if(depots == null)
                 {
                     _log("No depot information found for this App ID.", false);
                     return;
                 }
 
-                var depotIds = depots.Properties().Select(p => p.Name).Where(name => int.TryParse(name, out _));
+                var depotIds = depots.Select(p => p.Key).Where(name => int.TryParse(name, out _));
                 File.WriteAllLines(Path.Combine(settingsPath, "depots.txt"), depotIds);
                 _log($"✓ Fetched {depotIds.Count()} depots", false);
             }
@@ -260,8 +263,8 @@ namespace SteamPP.Services.GBE
             try
             {
                 var response = await HttpClient.GetStringAsync(url);
-                var data = JObject.Parse(response);
-                var dlcString = (string?)data?["data"]?[_appId.ToString()]?["extended"]?["listofdlc"];
+                var data = JsonNode.Parse(response);
+                var dlcString = data?["data"]?[_appId.ToString()]?["extended"]?["listofdlc"]?.GetValue<string>();
 
                 if (!string.IsNullOrEmpty(dlcString))
                 {
@@ -295,8 +298,8 @@ namespace SteamPP.Services.GBE
             try
             {
                  var response = await HttpClient.GetStringAsync(url);
-                 var data = JObject.Parse(response);
-                 var languagesString = (string?)data?["data"]?[_appId.ToString()]?["depots"]?["baselanguages"];
+                 var data = JsonNode.Parse(response);
+                 var languagesString = data?["data"]?[_appId.ToString()]?["depots"]?["baselanguages"]?.GetValue<string>();
                  if (!string.IsNullOrEmpty(languagesString))
                  {
                      var languages = languagesString.Split(',');

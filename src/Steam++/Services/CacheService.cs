@@ -1,12 +1,15 @@
 using SteamPP.Interfaces;
 using SteamPP.Models;
-using Newtonsoft.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json;
+using System.Text.Encodings.Web;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using SteamPP.Helpers;
 
 namespace SteamPP.Services
 {
@@ -86,11 +89,11 @@ namespace SteamPP.Services
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
-                    dynamic? data = JsonConvert.DeserializeObject<dynamic>(json);
+                    var data = JsonNode.Parse(json);
 
-                    if (data != null && data["data"] != null && data["data"]["header_image"] != null)
+                    if (data?["data"]?["header_image"] != null)
                     {
-                        string headerImagePath = data["data"]["header_image"].ToString();
+                        string headerImagePath = data["data"]["header_image"].GetValue<string>();
                         if (!string.IsNullOrEmpty(headerImagePath))
                         {
                             var imageUrl = $"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{appId}/{headerImagePath}";
@@ -127,12 +130,12 @@ namespace SteamPP.Services
                 if (storeResponse.IsSuccessStatusCode)
                 {
                     var json = await storeResponse.Content.ReadAsStringAsync();
-                    dynamic? data = JsonConvert.DeserializeObject<dynamic>(json);
+                    var data = JsonNode.Parse(json);
 
-                    if (data != null && data[appId] != null && data[appId]["success"] == true)
+                    if (data?[appId]?["success"]?.GetValue<bool>() == true)
                     {
                         var gameData = data[appId]["data"];
-                        string? imageUrl = gameData["header_image"]?.ToString();
+                        string? imageUrl = gameData?["header_image"]?.GetValue<string>();
 
                         if (!string.IsNullOrEmpty(imageUrl))
                         {
@@ -278,11 +281,11 @@ namespace SteamPP.Services
                     var json = await storeResponse.Content.ReadAsStringAsync();
 
                     // Parse JSON to get header_image or capsule_image
-                    dynamic? data = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(json);
-                    if (data != null && data[appId] != null && data[appId]["success"] == true)
+                    var data = JsonNode.Parse(json);
+                    if (data?[appId]?["success"]?.GetValue<bool>() == true)
                     {
                         var gameData = data[appId]["data"];
-                        string? imageUrl = gameData["header_image"]?.ToString();
+                        string? imageUrl = gameData?["header_image"]?.GetValue<string>();
 
                         if (!string.IsNullOrEmpty(imageUrl))
                         {
@@ -392,7 +395,7 @@ namespace SteamPP.Services
         {
             try
             {
-                var json = JsonConvert.SerializeObject(manifests, Formatting.Indented);
+                var json = JsonSerializer.Serialize(manifests, JsonHelper.Options);
                 var filePath = Path.Combine(_dataCacheFolder, "manifests.json");
                 File.WriteAllText(filePath, json);
             }
@@ -410,7 +413,7 @@ namespace SteamPP.Services
                 if (File.Exists(filePath))
                 {
                     var json = File.ReadAllText(filePath);
-                    return JsonConvert.DeserializeObject<List<Manifest>>(json);
+                    return JsonSerializer.Deserialize<List<Manifest>>(json, JsonHelper.Options);
                 }
             }
             catch (Exception ex)
@@ -425,7 +428,7 @@ namespace SteamPP.Services
         {
             try
             {
-                var json = JsonConvert.SerializeObject(manifest, Formatting.Indented);
+                var json = JsonSerializer.Serialize(manifest, JsonHelper.Options);
                 var filePath = Path.Combine(_dataCacheFolder, $"manifest_{manifest.AppId}.json");
                 File.WriteAllText(filePath, json);
             }
@@ -443,7 +446,7 @@ namespace SteamPP.Services
                 if (File.Exists(filePath))
                 {
                     var json = File.ReadAllText(filePath);
-                    return JsonConvert.DeserializeObject<Manifest>(json);
+                    return JsonSerializer.Deserialize<Manifest>(json, JsonHelper.Options);
                 }
             }
             catch (Exception ex)
@@ -513,7 +516,7 @@ namespace SteamPP.Services
                     timestamp = DateTime.Now,
                     data = jsonData
                 };
-                var json = JsonConvert.SerializeObject(cacheInfo, Formatting.Indented);
+                var json = JsonSerializer.Serialize(cacheInfo, JsonHelper.Options);
                 File.WriteAllText(filePath, json);
             }
             catch (Exception ex)
@@ -530,8 +533,8 @@ namespace SteamPP.Services
                 if (File.Exists(filePath))
                 {
                     var json = File.ReadAllText(filePath);
-                    var obj = JsonConvert.DeserializeObject<dynamic>(json);
-                    return (obj?.data?.ToString(), obj?.timestamp != null ? (DateTime)obj.timestamp : null);
+                    var obj = JsonNode.Parse(json);
+                    return (obj?["data"]?.GetValue<string>(), obj?["timestamp"]?.GetValue<DateTime>());
                 }
             }
             catch (Exception ex)
@@ -563,7 +566,7 @@ namespace SteamPP.Services
                     timestamp = DateTime.Now,
                     data = jsonData
                 };
-                var json = JsonConvert.SerializeObject(cacheInfo, Formatting.Indented);
+                var json = JsonSerializer.Serialize(cacheInfo, JsonHelper.Options);
                 File.WriteAllText(filePath, json);
             }
             catch (Exception ex)
@@ -580,8 +583,8 @@ namespace SteamPP.Services
                 if (File.Exists(filePath))
                 {
                     var json = File.ReadAllText(filePath);
-                    var obj = JsonConvert.DeserializeObject<dynamic>(json);
-                    return (obj?.data?.ToString(), obj?.timestamp != null ? (DateTime)obj.timestamp : null);
+                    var obj = JsonNode.Parse(json);
+                    return (obj?["data"]?.GetValue<string>(), obj?["timestamp"]?.GetValue<DateTime>());
                 }
             }
             catch (Exception ex)

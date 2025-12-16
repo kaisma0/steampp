@@ -1,4 +1,6 @@
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using SteamPP.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,111 +11,111 @@ namespace SteamPP.Services
 {
     public class SteamApp
     {
-        [JsonProperty("appid")]
+        [JsonPropertyName("appid")]
         public int AppId { get; set; }
 
-        [JsonProperty("name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
     }
 
     public class SteamAppList
     {
-        [JsonProperty("apps")]
+        [JsonPropertyName("apps")]
         public List<SteamApp> Apps { get; set; } = new();
     }
 
     public class SteamApiResponse
     {
-        [JsonProperty("applist")]
+        [JsonPropertyName("applist")]
         public SteamAppList? AppList { get; set; }
 
-        [JsonProperty("response")]
+        [JsonPropertyName("response")]
         public SteamStoreServiceResponse? Response { get; set; }
     }
 
     // New IStoreService/GetAppList response models
     public class SteamStoreServiceResponse
     {
-        [JsonProperty("apps")]
+        [JsonPropertyName("apps")]
         public List<SteamStoreApp> Apps { get; set; } = new();
 
-        [JsonProperty("have_more_results")]
+        [JsonPropertyName("have_more_results")]
         public bool HaveMoreResults { get; set; }
 
-        [JsonProperty("last_appid")]
+        [JsonPropertyName("last_appid")]
         public int LastAppId { get; set; }
     }
 
     public class SteamStoreApp
     {
-        [JsonProperty("appid")]
+        [JsonPropertyName("appid")]
         public int AppId { get; set; }
 
-        [JsonProperty("name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        [JsonProperty("last_modified")]
+        [JsonPropertyName("last_modified")]
         public long LastModified { get; set; }
 
-        [JsonProperty("price_change_number")]
+        [JsonPropertyName("price_change_number")]
         public long PriceChangeNumber { get; set; }
     }
 
     // Steam Store Search Models
     public class SteamStoreSearchItem
     {
-        [JsonProperty("id")]
+        [JsonPropertyName("id")]
         public int Id { get; set; }
 
-        [JsonProperty("type")]
+        [JsonPropertyName("type")]
         public string Type { get; set; } = string.Empty;
 
-        [JsonProperty("name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        [JsonProperty("tiny_image")]
+        [JsonPropertyName("tiny_image")]
         public string TinyImage { get; set; } = string.Empty;
 
-        [JsonProperty("capsule_image")]
+        [JsonPropertyName("capsule_image")]
         public string CapsuleImage { get; set; } = string.Empty;
 
-        [JsonProperty("header_image")]
+        [JsonPropertyName("header_image")]
         public string HeaderImage { get; set; } = string.Empty;
 
-        [JsonProperty("metascore")]
+        [JsonPropertyName("metascore")]
         public string Metascore { get; set; } = string.Empty;
 
-        [JsonProperty("price")]
+        [JsonPropertyName("price")]
         public SteamPrice? Price { get; set; }
     }
 
     public class SteamPrice
     {
-        [JsonProperty("currency")]
+        [JsonPropertyName("currency")]
         public string Currency { get; set; } = string.Empty;
 
-        [JsonProperty("initial")]
+        [JsonPropertyName("initial")]
         public int Initial { get; set; }
 
-        [JsonProperty("final")]
+        [JsonPropertyName("final")]
         public int Final { get; set; }
 
-        [JsonProperty("discount_percent")]
+        [JsonPropertyName("discount_percent")]
         public int DiscountPercent { get; set; }
 
-        [JsonProperty("initial_formatted")]
+        [JsonPropertyName("initial_formatted")]
         public string InitialFormatted { get; set; } = string.Empty;
 
-        [JsonProperty("final_formatted")]
+        [JsonPropertyName("final_formatted")]
         public string FinalFormatted { get; set; } = string.Empty;
     }
 
     public class SteamStoreSearchResponse
     {
-        [JsonProperty("items")]
+        [JsonPropertyName("items")]
         public List<SteamStoreSearchItem> Items { get; set; } = new();
 
-        [JsonProperty("total")]
+        [JsonPropertyName("total")]
         public int Total { get; set; }
     }
 
@@ -159,7 +161,7 @@ namespace SteamPP.Services
                 var json = await response.Content.ReadAsStringAsync();
 
                 // The API returns a dictionary of appid -> name
-                var appDict = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                var appDict = JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonHelper.Options);
 
                 if (appDict == null || appDict.Count == 0)
                     return null;
@@ -202,7 +204,7 @@ namespace SteamPP.Services
                 {
                     try
                     {
-                        _cachedData = JsonConvert.DeserializeObject<SteamApiResponse>(cachedJson);
+                        _cachedData = JsonSerializer.Deserialize<SteamApiResponse>(cachedJson, JsonHelper.Options);
                         return _cachedData;
                     }
                     catch
@@ -219,7 +221,7 @@ namespace SteamPP.Services
                 if (morrenusData != null)
                 {
                     _cachedData = morrenusData;
-                    var cacheJson = JsonConvert.SerializeObject(morrenusData);
+                    var cacheJson = JsonSerializer.Serialize(morrenusData, JsonHelper.Options);
                     _cacheService.CacheSteamAppList(cacheJson);
                     return morrenusData;
                 }
@@ -237,7 +239,7 @@ namespace SteamPP.Services
                 response.EnsureSuccessStatusCode();
 
                 var json = await response.Content.ReadAsStringAsync();
-                var appList = JsonConvert.DeserializeObject<List<SteamApp>>(json);
+                var appList = JsonSerializer.Deserialize<List<SteamApp>>(json, JsonHelper.Options);
 
                 // Build response in old format for backward compatibility
                 var data = new SteamApiResponse
@@ -252,7 +254,7 @@ namespace SteamPP.Services
                 _cachedData = data;
 
                 // Cache to disk
-                var cacheJson = JsonConvert.SerializeObject(data);
+                var cacheJson = JsonSerializer.Serialize(data, JsonHelper.Options);
                 _cacheService.CacheSteamAppList(cacheJson);
 
                 return data;
@@ -265,7 +267,7 @@ namespace SteamPP.Services
                 {
                     try
                     {
-                        _cachedData = JsonConvert.DeserializeObject<SteamApiResponse>(cachedJson);
+                        _cachedData = JsonSerializer.Deserialize<SteamApiResponse>(cachedJson, JsonHelper.Options);
                         return _cachedData;
                     }
                     catch
@@ -345,7 +347,7 @@ namespace SteamPP.Services
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var searchResponse = JsonConvert.DeserializeObject<SteamStoreSearchResponse>(json);
+                var searchResponse = JsonSerializer.Deserialize<SteamStoreSearchResponse>(json, JsonHelper.Options);
 
                 return searchResponse;
             }
@@ -371,7 +373,7 @@ namespace SteamPP.Services
                 {
                     try
                     {
-                        return JsonConvert.DeserializeObject<SteamStoreSearchResponse>(cachedJson);
+                        return JsonSerializer.Deserialize<SteamStoreSearchResponse>(cachedJson, JsonHelper.Options);
                     }
                     catch
                     {
@@ -386,7 +388,7 @@ namespace SteamPP.Services
             // Cache result
             if (result != null)
             {
-                var json = JsonConvert.SerializeObject(result);
+                var json = JsonSerializer.Serialize(result, JsonHelper.Options);
                 _cacheService.CacheGameStatus(cacheKey, json);
             }
 

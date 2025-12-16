@@ -1,5 +1,7 @@
 using SteamPP.Models;
-using Newtonsoft.Json;
+using SteamPP.Helpers;
+using System.Text.Json;
+using System.Text.Encodings.Web;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -58,7 +60,7 @@ namespace SteamPP.Services
                 }
 
                 // Serialize to JSON
-                var json = JsonConvert.SerializeObject(backup, Formatting.Indented);
+                var json = JsonSerializer.Serialize(backup, JsonHelper.Options);
 
                 // Save to file
                 var fileName = $"SteamPPBackup_{DateTime.Now:yyyyMMdd_HHmmss}.json";
@@ -84,7 +86,7 @@ namespace SteamPP.Services
                 }
 
                 var json = await File.ReadAllTextAsync(backupFilePath);
-                var backup = JsonConvert.DeserializeObject<BackupData>(json);
+                var backup = JsonSerializer.Deserialize<BackupData>(json, JsonHelper.Options);
 
                 if (backup == null)
                 {

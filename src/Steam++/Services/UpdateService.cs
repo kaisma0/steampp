@@ -1,4 +1,6 @@
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using SteamPP.Helpers;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -12,34 +14,34 @@ namespace SteamPP.Services
 {
     public class UpdateInfo
     {
-        [JsonProperty("tag_name")]
+        [JsonPropertyName("tag_name")]
         public string TagName { get; set; } = string.Empty;
 
-        [JsonProperty("name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        [JsonProperty("body")]
+        [JsonPropertyName("body")]
         public string Body { get; set; } = string.Empty;
 
-        [JsonProperty("html_url")]
+        [JsonPropertyName("html_url")]
         public string HtmlUrl { get; set; } = string.Empty;
 
-        [JsonProperty("published_at")]
+        [JsonPropertyName("published_at")]
         public DateTime PublishedAt { get; set; }
 
-        [JsonProperty("assets")]
+        [JsonPropertyName("assets")]
         public UpdateAsset[] Assets { get; set; } = Array.Empty<UpdateAsset>();
     }
 
     public class UpdateAsset
     {
-        [JsonProperty("name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        [JsonProperty("browser_download_url")]
+        [JsonPropertyName("browser_download_url")]
         public string BrowserDownloadUrl { get; set; } = string.Empty;
 
-        [JsonProperty("size")]
+        [JsonPropertyName("size")]
         public long Size { get; set; }
     }
 
@@ -90,7 +92,7 @@ namespace SteamPP.Services
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var updateInfo = JsonConvert.DeserializeObject<UpdateInfo>(json);
+                var updateInfo = JsonSerializer.Deserialize<UpdateInfo>(json, JsonHelper.Options);
 
                 if (updateInfo == null)
                 {

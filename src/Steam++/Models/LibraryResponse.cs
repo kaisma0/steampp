@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 using System;
 using System.Collections.Generic;
 
@@ -6,52 +6,52 @@ namespace SteamPP.Models
 {
     public class LibraryResponse
     {
-        [JsonProperty("status")]
+        [JsonPropertyName("status")]
         public string Status { get; set; } = string.Empty;
 
-        [JsonProperty("total_count")]
+        [JsonPropertyName("total_count")]
         public int TotalCount { get; set; }
 
-        [JsonProperty("limit")]
+        [JsonPropertyName("limit")]
         public int Limit { get; set; }
 
-        [JsonProperty("offset")]
+        [JsonPropertyName("offset")]
         public int Offset { get; set; }
 
-        [JsonProperty("search")]
+        [JsonPropertyName("search")]
         public string? Search { get; set; }
 
-        [JsonProperty("sort_by")]
+        [JsonPropertyName("sort_by")]
         public string SortBy { get; set; } = "updated";
 
-        [JsonProperty("games")]
+        [JsonPropertyName("games")]
         public List<LibraryGame> Games { get; set; } = new();
 
-        [JsonProperty("timestamp")]
+        [JsonPropertyName("timestamp")]
         public DateTime Timestamp { get; set; }
     }
 
     public class LibraryGame : CommunityToolkit.Mvvm.ComponentModel.ObservableObject
     {
-        [JsonProperty("game_id")]
+        [JsonPropertyName("game_id")]
         public string GameId { get; set; } = string.Empty;
 
-        [JsonProperty("game_name")]
+        [JsonPropertyName("game_name")]
         public string GameName { get; set; } = string.Empty;
 
-        [JsonProperty("header_image")]
+        [JsonPropertyName("header_image")]
         public string HeaderImage { get; set; } = string.Empty;
 
-        [JsonProperty("uploaded_date")]
+        [JsonPropertyName("uploaded_date")]
         public DateTime UploadedDate { get; set; }
 
-        [JsonProperty("manifest_available")]
+        [JsonPropertyName("manifest_available")]
         public bool ManifestAvailable { get; set; }
 
-        [JsonProperty("manifest_size")]
+        [JsonPropertyName("manifest_size")]
         public long? ManifestSize { get; set; }
 
-        [JsonProperty("manifest_updated")]
+        [JsonPropertyName("manifest_updated")]
         public DateTime? ManifestUpdated { get; set; }
 
         // For UI
@@ -65,25 +65,25 @@ namespace SteamPP.Models
 
     public class SearchResponse
     {
-        [JsonProperty("status")]
+        [JsonPropertyName("status")]
         public string Status { get; set; } = string.Empty;
 
-        [JsonProperty("query")]
+        [JsonPropertyName("query")]
         public string Query { get; set; } = string.Empty;
 
-        [JsonProperty("total_matches")]
+        [JsonPropertyName("total_matches")]
         public int TotalMatches { get; set; }
 
-        [JsonProperty("returned_count")]
+        [JsonPropertyName("returned_count")]
         public int ReturnedCount { get; set; }
 
-        [JsonProperty("limit")]
+        [JsonPropertyName("limit")]
         public int Limit { get; set; }
 
-        [JsonProperty("results")]
+        [JsonPropertyName("results")]
         public List<LibraryGame> Results { get; set; } = new();
 
-        [JsonProperty("timestamp")]
+        [JsonPropertyName("timestamp")]
         public DateTime Timestamp { get; set; }
     }
 }

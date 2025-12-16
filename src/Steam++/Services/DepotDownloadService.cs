@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+using System.Text.Json.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -56,35 +56,35 @@ namespace SteamPP.Services
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                dynamic? data = JsonConvert.DeserializeObject<dynamic>(json);
+                var data = JsonNode.Parse(json);
 
                 var depots = new List<DepotInfo>();
 
                 if (data?["data"]?[appId]?["depots"] != null)
                 {
-                    var depotsSection = data["data"][appId]["depots"];
+                    var depotsSection = data["data"][appId]["depots"].AsObject();
 
                     foreach (var depot in depotsSection)
                     {
-                        var depotId = depot.Name;
+                        var depotId = depot.Key;
 
                         // Skip non-numeric depot IDs (like "branches")
                         if (!long.TryParse(depotId, out long _))
                             continue;
 
                         var depotData = depot.Value;
-                        var config = depotData["config"];
+                        var config = depotData?["config"];
 
                         long size = 0;
-                        if (config?["depotfromapp"] == null && depotData["manifests"]?["public"]?["size"] != null)
+                        if (config?["depotfromapp"] == null && depotData?["manifests"]?["public"]?["size"] != null)
                         {
-                            size = (long)(depotData["manifests"]["public"]["size"] ?? 0);
+                            size = depotData["manifests"]["public"]["size"].GetValue<long>();
                         }
 
                         var depotInfo = new DepotInfo
                         {
                             DepotId = depotId,
-                            Language = config?["language"]?.ToString(),
+                            Language = config?["language"]?.GetValue<string>(),
                             Size = size
                         };
 

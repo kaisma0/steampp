@@ -4,7 +4,7 @@ using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Newtonsoft.Json.Linq;
+using System.Text.Json.Nodes;
 using SteamPP.Helpers;
 
 namespace SteamPP.Tools.SteamAuthPro.Views
@@ -54,9 +54,9 @@ namespace SteamPP.Tools.SteamAuthPro.Views
                 using var client = new HttpClient();
                 var url = $"https://store.steampowered.com/api/storesearch/?term={Uri.EscapeDataString(searchTerm)}&cc=US";
                 var response = await client.GetStringAsync(url);
-                var json = JObject.Parse(response);
+                var json = JsonNode.Parse(response);
 
-                var items = json["items"] as JArray;
+                var items = json?["items"]?.AsArray();
                 ResultsListBox.Items.Clear();
 
                 if (items == null || items.Count == 0)
@@ -67,8 +67,8 @@ namespace SteamPP.Tools.SteamAuthPro.Views
 
                 foreach (var item in items.Take(20))
                 {
-                    var appName = item["name"]?.Value<string>() ?? "Unknown";
-                    var appId = item["id"]?.Value<string>() ?? "N/A";
+                    var appName = item?["name"]?.GetValue<string>() ?? "Unknown";
+                    var appId = item?["id"]?.GetValue<int>().ToString() ?? "N/A";
 
                     var listItem = new ListBoxItem
                     {
