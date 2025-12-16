@@ -676,7 +676,7 @@ namespace SteamPP.ViewModels
             window.Owner = Application.Current.MainWindow;
             if (window.ShowDialog() == true)
             {
-                ApiKey = window.GeneratedApiKey;
+                ApiKey = window.GeneratedApiKey ?? string.Empty;
                 await ValidateApiKey();
                 SaveSettings();
             }

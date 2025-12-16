@@ -122,14 +122,14 @@ namespace DepotDownloader
             }
         }
 
-        public static DepotManifest LoadManifestFromFile(string directory, uint depotId, ulong manifestId, bool badHashWarning)
+        public static DepotManifest? LoadManifestFromFile(string directory, uint depotId, ulong manifestId, bool badHashWarning)
         {
             // Try loading Steam format manifest first.
             var filename = Path.Combine(directory, string.Format("{0}_{1}.manifest", depotId, manifestId));
 
             if (File.Exists(filename))
             {
-                byte[] expectedChecksum;
+                byte[]? expectedChecksum;
 
                 try
                 {
@@ -157,7 +157,7 @@ namespace DepotDownloader
 
             if (File.Exists(filename))
             {
-                byte[] expectedChecksum;
+                byte[]? expectedChecksum;
 
                 try
                 {
@@ -168,10 +168,10 @@ namespace DepotDownloader
                     expectedChecksum = null;
                 }
 
-                byte[] currentChecksum;
+                byte[]? currentChecksum;
                 var oldManifest = ProtoManifest.LoadFromFile(filename, out currentChecksum);
 
-                if (oldManifest != null && (expectedChecksum == null || !expectedChecksum.SequenceEqual(currentChecksum)))
+                if (oldManifest != null && (expectedChecksum == null || currentChecksum == null || !expectedChecksum.SequenceEqual(currentChecksum)))
                 {
                     oldManifest = null;
 
@@ -205,7 +205,7 @@ namespace DepotDownloader
             }
         }
 
-        public static byte[] DecodeHexString(string hex)
+        public static byte[]? DecodeHexString(string hex)
         {
             if (hex == null)
                 return null;

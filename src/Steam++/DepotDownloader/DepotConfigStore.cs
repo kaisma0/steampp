@@ -15,7 +15,7 @@ namespace DepotDownloader
         [ProtoMember(1)]
         public Dictionary<uint, ulong> InstalledManifestIDs { get; private set; }
 
-        string FileName;
+        string? FileName;
 
         DepotConfigStore()
         {
@@ -27,7 +27,7 @@ namespace DepotDownloader
             get { return Instance != null; }
         }
 
-        public static DepotConfigStore Instance;
+        public static DepotConfigStore? Instance;
 
         public static void LoadFromFile(string filename)
         {
@@ -45,12 +45,15 @@ namespace DepotDownloader
                 Instance = new DepotConfigStore();
             }
 
+            if (Instance == null)
+                Instance = new DepotConfigStore();
+
             Instance.FileName = filename;
         }
 
         public static void Save()
         {
-            if (!Loaded)
+            if (!Loaded || Instance!.FileName == null)
                 throw new Exception("Saved config before loading");
 
             using var fs = File.Open(Instance.FileName, FileMode.Create);

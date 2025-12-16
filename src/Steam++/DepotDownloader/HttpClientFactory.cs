@@ -21,7 +21,8 @@ namespace DepotDownloader
                 ConnectCallback = IPv4ConnectAsync
             });
 
-            var assemblyVersion = typeof(HttpClientFactory).Assembly.GetName().Version.ToString(fieldCount: 3);
+            var version = typeof(HttpClientFactory).Assembly.GetName().Version;
+            var assemblyVersion = version != null ? version.ToString(fieldCount: 3) : "1.0.0";
             client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DepotDownloader", assemblyVersion));
 
             return client;

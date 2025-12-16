@@ -91,9 +91,11 @@ namespace SteamPP.Services
                     var json = await response.Content.ReadAsStringAsync();
                     var data = JsonNode.Parse(json);
 
-                    if (data?["data"]?["header_image"] != null)
+                    var dataNode = data?["data"];
+                    var headerImageNode = dataNode?["header_image"];
+                    if (headerImageNode != null)
                     {
-                        string headerImagePath = data["data"]["header_image"].GetValue<string>();
+                        string headerImagePath = headerImageNode.GetValue<string>();
                         if (!string.IsNullOrEmpty(headerImagePath))
                         {
                             var imageUrl = $"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{appId}/{headerImagePath}";
@@ -132,25 +134,29 @@ namespace SteamPP.Services
                     var json = await storeResponse.Content.ReadAsStringAsync();
                     var data = JsonNode.Parse(json);
 
-                    if (data?[appId]?["success"]?.GetValue<bool>() == true)
+                    if (data != null)
                     {
-                        var gameData = data[appId]["data"];
-                        string? imageUrl = gameData?["header_image"]?.GetValue<string>();
-
-                        if (!string.IsNullOrEmpty(imageUrl))
+                        var appNode = data[appId];
+                        if (appNode?["success"]?.GetValue<bool>() == true)
                         {
-                            _logger?.Debug($"Found header_image from Steam Store API: {imageUrl}");
+                            var gameData = appNode?["data"];
+                            string? imageUrl = gameData?["header_image"]?.GetValue<string>();
 
-                            var imageResponse = await _httpClient.GetAsync(imageUrl);
-                            if (imageResponse.IsSuccessStatusCode)
+                            if (!string.IsNullOrEmpty(imageUrl))
                             {
-                                var bytes = await imageResponse.Content.ReadAsByteArrayAsync();
-                                if (bytes.Length > 0)
+                                _logger?.Debug($"Found header_image from Steam Store API: {imageUrl}");
+
+                                var imageResponse = await _httpClient.GetAsync(imageUrl);
+                                if (imageResponse.IsSuccessStatusCode)
                                 {
-                                    await WriteFileSafelyAsync(iconPath, bytes);
-                                    _logger?.Info($"✓ Downloaded icon for {appId} from Steam Store API ({bytes.Length} bytes)");
-                                    ManageIconCacheSize();
-                                    return iconPath;
+                                    var bytes = await imageResponse.Content.ReadAsByteArrayAsync();
+                                    if (bytes.Length > 0)
+                                    {
+                                        await WriteFileSafelyAsync(iconPath, bytes);
+                                        _logger?.Info($"✓ Downloaded icon for {appId} from Steam Store API ({bytes.Length} bytes)");
+                                        ManageIconCacheSize();
+                                        return iconPath;
+                                    }
                                 }
                             }
                         }
@@ -282,23 +288,27 @@ namespace SteamPP.Services
 
                     // Parse JSON to get header_image or capsule_image
                     var data = JsonNode.Parse(json);
-                    if (data?[appId]?["success"]?.GetValue<bool>() == true)
+                    if (data != null)
                     {
-                        var gameData = data[appId]["data"];
-                        string? imageUrl = gameData?["header_image"]?.GetValue<string>();
-
-                        if (!string.IsNullOrEmpty(imageUrl))
+                        var appNode = data[appId];
+                        if (appNode?["success"]?.GetValue<bool>() == true)
                         {
-                            _logger?.Info($"Found image URL from Steam Store API: {imageUrl}");
+                            var gameData = appNode?["data"];
+                            string? imageUrl = gameData?["header_image"]?.GetValue<string>();
 
-                            var imageResponse = await _httpClient.GetAsync(imageUrl);
-                            if (imageResponse.IsSuccessStatusCode)
+                            if (!string.IsNullOrEmpty(imageUrl))
                             {
-                                var bytes = await imageResponse.Content.ReadAsByteArrayAsync();
-                                await WriteFileSafelyAsync(cachedPath, bytes);
-                                _logger?.Info($"✓ Success! Downloaded {bytes.Length} bytes from Steam Store API");
-                                ManageIconCacheSize();
-                                return cachedPath;
+                                _logger?.Info($"Found image URL from Steam Store API: {imageUrl}");
+
+                                var imageResponse = await _httpClient.GetAsync(imageUrl);
+                                if (imageResponse.IsSuccessStatusCode)
+                                {
+                                    var bytes = await imageResponse.Content.ReadAsByteArrayAsync();
+                                    await WriteFileSafelyAsync(cachedPath, bytes);
+                                    _logger?.Info($"✓ Success! Downloaded {bytes.Length} bytes from Steam Store API");
+                                    ManageIconCacheSize();
+                                    return cachedPath;
+                                }
                             }
                         }
                     }

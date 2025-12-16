@@ -17,7 +17,7 @@ namespace DepotDownloader
         private readonly Steam3Session steamSession;
         private readonly uint appId;
         public Client CDNClient { get; }
-        public Server ProxyServer { get; private set; }
+        public Server? ProxyServer { get; private set; }
 
         private readonly List<Server> servers = [];
         private int nextServer;
@@ -39,11 +39,15 @@ namespace DepotDownloader
                 .Where(server =>
                 {
                     var isEligibleForApp = server.AllowedAppIds.Length == 0 || server.AllowedAppIds.Contains(appId);
-                    return isEligibleForApp && (server.Type == "SteamCache" || server.Type == "CDN");
+                    return isEligibleForApp && (server.Type == "SteamCache" || server.Type == "CDN") && server.Host != null;
                 })
                 .Select(server =>
                 {
-                    AccountSettingsStore.Instance.ContentServerPenalty.TryGetValue(server.Host, out var penalty);
+                    int penalty = 0;
+                    if (server.Host != null && AccountSettingsStore.Instance is { } settings)
+                    {
+                        settings.ContentServerPenalty.TryGetValue(server.Host, out penalty);
+                    }
 
                     return (server, penalty);
                 })

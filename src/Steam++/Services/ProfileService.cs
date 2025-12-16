@@ -241,7 +241,6 @@ namespace SteamPP.Services
             profile.ModifiedAt = DateTime.UtcNow;
             SaveProfiles();
 
-            bool wasUninstalled = false;
             if (uninstallGame)
             {
                 var existsInOtherProfile = data.Profiles.Any(p => p.Id != profileId && p.Games.Any(g => g.AppId == appId));
@@ -250,7 +249,6 @@ namespace SteamPP.Services
                     var appListPath = GetAppListPath();
                     await _fileInstallService.UninstallGreenLumaGameAsync(appId, appListPath);
                     _libraryRefreshService.NotifyGameUninstalled(appId);
-                    wasUninstalled = true;
                     _logger.Info($"Uninstalled game {appId} (not in any other profile)");
                 }
                 else
@@ -467,6 +465,9 @@ namespace SteamPP.Services
                 };
 
                 var steamPath = _steamService.GetSteamPath();
+                if (steamPath == null)
+                    return (false, "Steam path not found", 0);
+
                 var depotCachePath = Path.Combine(steamPath, "depotcache");
                 int manifestCount = 0;
 
@@ -548,6 +549,9 @@ namespace SteamPP.Services
                 if (filePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                 {
                     var steamPath = _steamService.GetSteamPath();
+                    if (steamPath == null)
+                        return (false, "Steam path not found", null);
+
                     var depotCachePath = Path.Combine(steamPath, "depotcache");
 
                     using (var zipArchive = ZipFile.OpenRead(filePath))

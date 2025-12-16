@@ -18,7 +18,7 @@ namespace SteamPP.Views
 
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
-        public string GeneratedApiKey { get; private set; }
+        public string? GeneratedApiKey { get; private set; }
 
         public ApiKeyAutomationWindow()
         {
@@ -51,7 +51,7 @@ namespace SteamPP.Views
             }
         }
 
-        private async void WebView_NavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
+        private async void WebView_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
         {
             try
             {
@@ -195,7 +195,7 @@ namespace SteamPP.Views
         {
             if (_cts.Token.IsCancellationRequested) return;
 
-            string key = await ExtractKey();
+            string? key = await ExtractKey();
             if (!string.IsNullOrEmpty(key))
             {
                 FinishWithKey(key);
@@ -232,7 +232,7 @@ namespace SteamPP.Views
             }
         }
 
-        private async Task<string> ExtractKey()
+        private async Task<string?> ExtractKey()
         {
             if (_cts.Token.IsCancellationRequested) return null;
 

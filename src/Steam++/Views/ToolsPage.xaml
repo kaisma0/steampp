@@ -143,24 +143,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Manifest Website Section -->
-                        <Border Style="{StaticResource ModernCardStyle}" Margin="0,0,0,20">
-                            <StackPanel>
-                                <TextBlock Text="Steam++ Manifest Website"
-                                           FontSize="20"
-                                           FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"
-                                           Margin="0,0,0,10"/>
-                                <TextBlock Text="Visit our website for more manifests and resources"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           TextWrapping="Wrap"
-                                           Margin="0,0,0,15"/>
-                                <Button Content="🌐 Visit Website"
-                                        Command="{Binding OpenManifestSiteCommand}"
-                                        HorizontalAlignment="Left"
-                                        Padding="20,10"/>
-                            </StackPanel>
-                        </Border>
+
 
                     </StackPanel>
                 </ScrollViewer>

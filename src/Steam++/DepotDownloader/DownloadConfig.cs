@@ -13,13 +13,13 @@ namespace DepotDownloader
         public bool DownloadAllArchs { get; set; }
         public bool DownloadAllLanguages { get; set; }
         public bool DownloadManifestOnly { get; set; }
-        public string InstallDirectory { get; set; }
+        public string? InstallDirectory { get; set; }
 
         public bool UsingFileList { get; set; }
-        public HashSet<string> FilesToDownload { get; set; }
-        public List<Regex> FilesToDownloadRegex { get; set; }
+        public HashSet<string>? FilesToDownload { get; set; }
+        public List<Regex>? FilesToDownloadRegex { get; set; }
 
-        public string BetaPassword { get; set; }
+        public string? BetaPassword { get; set; }
 
         public bool VerifyAll { get; set; }
 
@@ -33,7 +33,7 @@ namespace DepotDownloader
         public bool SkipAppConfirmation { get; set; }
 
         public bool UseManifestFile { get; set; }
-        public string ManifestFile { get; set; }
+        public string? ManifestFile { get; set; }
         public bool JsonProgress { get; set; }
     }
 }

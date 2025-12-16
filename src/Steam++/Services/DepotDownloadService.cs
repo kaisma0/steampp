@@ -60,9 +60,10 @@ namespace SteamPP.Services
 
                 var depots = new List<DepotInfo>();
 
-                if (data?["data"]?[appId]?["depots"] != null)
+                var depotsNode = data?["data"]?[appId]?["depots"];
+                if (depotsNode != null)
                 {
-                    var depotsSection = data["data"][appId]["depots"].AsObject();
+                    var depotsSection = depotsNode.AsObject();
 
                     foreach (var depot in depotsSection)
                     {
@@ -76,9 +77,13 @@ namespace SteamPP.Services
                         var config = depotData?["config"];
 
                         long size = 0;
-                        if (config?["depotfromapp"] == null && depotData?["manifests"]?["public"]?["size"] != null)
+                        if (config?["depotfromapp"] == null)
                         {
-                            size = depotData["manifests"]["public"]["size"].GetValue<long>();
+                            var sizeNode = depotData?["manifests"]?["public"]?["size"];
+                            if (sizeNode != null)
+                            {
+                                size = sizeNode.GetValue<long>();
+                            }
                         }
 
                         var depotInfo = new DepotInfo

@@ -21,11 +21,7 @@ namespace SteamPP.ViewModels
             OpenUrl("https://cs.rin.ru/forum/viewtopic.php?p=2063857#p2063857");
         }
 
-        [RelayCommand]
-        private void OpenManifestSite()
-        {
-            OpenUrl("https://manifest.morrenus.xyz/");
-        }
+
 
         private void OpenUrl(string url)
         {

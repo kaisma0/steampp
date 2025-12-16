@@ -299,7 +299,7 @@ namespace SteamPP.ViewModels
                             string depotLanguage = "";
                             long depotSize = 0;
 
-                            if (steamCmdData.Data.TryGetValue(appId, out var appData) &&
+                            if (steamCmdData.Data != null && steamCmdData.Data.TryGetValue(appId, out var appData) &&
                                 appData.Depots?.TryGetValue(depotIdStr, out var depotData) == true)
                             {
                                 depotLanguage = depotData.Config?.Language ?? "";
@@ -387,7 +387,7 @@ namespace SteamPP.ViewModels
 
                     // Get game name from SteamCMD data
                     string gameName = appId;
-                    if (steamCmdData.Data.TryGetValue(appId, out var gameData))
+                    if (steamCmdData.Data != null && steamCmdData.Data.TryGetValue(appId, out var gameData))
                     {
                         gameName = gameData.Common?.Name ?? appId;
                     }
@@ -495,7 +495,15 @@ namespace SteamPP.ViewModels
                         }
                     }
 
-                    var appListPath = customPath ?? Path.Combine(_steamService.GetSteamPath(), "AppList");
+                    var steamPath = _steamService.GetSteamPath();
+                    if (customPath == null && steamPath == null)
+                    {
+                        MessageBoxHelper.Show("Could not find Steam installation path.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        IsInstalling = false;
+                        return;
+                    }
+
+                    var appListPath = customPath ?? Path.Combine(steamPath!, "AppList");
                     var currentCount = Directory.Exists(appListPath) ? Directory.GetFiles(appListPath, "*.txt").Length : 0;
 
                     if (currentCount >= 128)

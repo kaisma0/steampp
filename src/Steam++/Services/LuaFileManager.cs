@@ -415,20 +415,14 @@ namespace SteamPP.Services
                 var lines = content.Split('\n');
 
                 // Check ALL setManifestid lines to determine state
-                bool hasCommented = false;
                 bool hasUncommented = false;
 
                 foreach (var line in lines)
                 {
                     var trimmed = line.Trim();
 
-                    // Check for commented setManifestid
-                    if (trimmed.StartsWith("--setManifestid"))
-                    {
-                        hasCommented = true;
-                    }
                     // Check for uncommented setManifestid
-                    else if (trimmed.StartsWith("setManifestid"))
+                    if (trimmed.StartsWith("setManifestid"))
                     {
                         hasUncommented = true;
                     }

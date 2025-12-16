@@ -23,7 +23,10 @@ namespace DepotDownloader
 
         public ProtoManifest(DepotManifest sourceManifest, ulong id) : this()
         {
-            sourceManifest.Files.ForEach(f => Files.Add(new FileData(f)));
+            if (sourceManifest == null)
+                throw new ArgumentNullException(nameof(sourceManifest));
+
+            sourceManifest.Files?.ForEach(f => Files.Add(new FileData(f)));
             ID = id;
             CreationTime = sourceManifest.CreationTime;
         }
@@ -47,7 +50,7 @@ namespace DepotDownloader
             }
 
             [ProtoMember(1)]
-            public string FileName { get; internal set; }
+            public string? FileName { get; internal set; }
 
             /// <summary>
             /// Gets the chunks that this file is composed of.
@@ -71,7 +74,7 @@ namespace DepotDownloader
             /// Gets the hash of this file.
             /// </summary>
             [ProtoMember(5)]
-            public byte[] FileHash { get; private set; }
+            public byte[]? FileHash { get; private set; }
         }
 
         [ProtoContract(SkipConstructor = true)]
@@ -79,7 +82,7 @@ namespace DepotDownloader
         {
             public ChunkData(DepotManifest.ChunkData sourceChunk)
             {
-                ChunkID = sourceChunk.ChunkID;
+                ChunkID = sourceChunk.ChunkID!;
                 Checksum = BitConverter.GetBytes(sourceChunk.Checksum);
                 Offset = sourceChunk.Offset;
                 CompressedLength = sourceChunk.CompressedLength;
@@ -126,7 +129,7 @@ namespace DepotDownloader
         [ProtoMember(3)]
         public DateTime CreationTime { get; private set; }
 
-        public static ProtoManifest LoadFromFile(string filename, out byte[] checksum)
+        public static ProtoManifest? LoadFromFile(string filename, out byte[]? checksum)
         {
             if (!File.Exists(filename))
             {
@@ -167,8 +170,10 @@ namespace DepotDownloader
 
             foreach (var file in Files)
             {
+                if (file.FileName == null) continue;
+
                 var fileNameHash = SHA1.HashData(Encoding.UTF8.GetBytes(file.FileName.Replace('/', '\\').ToLowerInvariant()));
-                var newFile = new DepotManifest.FileData(file.FileName, fileNameHash, file.Flags, file.TotalSize, file.FileHash, null, false, file.Chunks.Count);
+                var newFile = new DepotManifest.FileData(file.FileName, fileNameHash, file.Flags, file.TotalSize, file.FileHash ?? Array.Empty<byte>(), string.Empty, false, file.Chunks.Count);
 
                 foreach (var chunk in file.Chunks)
                 {

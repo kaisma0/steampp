@@ -284,7 +284,7 @@ namespace SteamPP.Services
         {
             var data = steamData ?? _cachedData;
 
-            if (data == null)
+            if (data == null || data.AppList == null || data.AppList.Apps == null)
                 return "Unknown Game";
 
             var app = data.AppList.Apps.FirstOrDefault(a => a.AppId.ToString() == appId);
@@ -301,7 +301,7 @@ namespace SteamPP.Services
         {
             var data = steamData ?? _cachedData;
 
-            if (data == null)
+            if (data == null || data.AppList == null || data.AppList.Apps == null)
                 return new Dictionary<string, string>();
 
             return data.AppList.Apps.ToDictionary(

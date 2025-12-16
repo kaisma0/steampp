@@ -20,7 +20,7 @@ namespace DepotDownloader
     {
         public bool IsLoggedOn { get; private set; }
 
-        public ReadOnlyCollection<SteamApps.LicenseListCallback.License> Licenses
+        public ReadOnlyCollection<SteamApps.LicenseListCallback.License>? Licenses
         {
             get;
             private set;
@@ -30,8 +30,8 @@ namespace DepotDownloader
         public Dictionary<uint, ulong> PackageTokens { get; } = [];
         public Dictionary<uint, byte[]> DepotKeys { get; } = [];
         public ConcurrentDictionary<(uint, string), TaskCompletionSource<SteamContent.CDNAuthToken>> CDNAuthTokens { get; } = [];
-        public Dictionary<uint, SteamApps.PICSProductInfoCallback.PICSProductInfo> AppInfo { get; } = [];
-        public Dictionary<uint, SteamApps.PICSProductInfoCallback.PICSProductInfo> PackageInfo { get; } = [];
+        public Dictionary<uint, SteamApps.PICSProductInfoCallback.PICSProductInfo?> AppInfo { get; } = [];
+        public Dictionary<uint, SteamApps.PICSProductInfoCallback.PICSProductInfo?> PackageInfo { get; } = [];
         public Dictionary<string, byte[]> AppBetaPasswords { get; } = [];
 
         public SteamClient steamClient;
@@ -51,7 +51,7 @@ namespace DepotDownloader
         bool bIsConnectionRecovery;
         int connectionBackoff;
         int seq; // more hack fixes
-        AuthSession authSession;
+        AuthSession? authSession;
         readonly CancellationTokenSource abortedToken = new();
 
         // input
@@ -69,12 +69,12 @@ namespace DepotDownloader
 
             this.steamClient = new SteamClient(clientConfiguration);
 
-            this.steamUser = this.steamClient.GetHandler<SteamUser>();
-            this.steamApps = this.steamClient.GetHandler<SteamApps>();
-            this.steamCloud = this.steamClient.GetHandler<SteamCloud>();
-            var steamUnifiedMessages = this.steamClient.GetHandler<SteamUnifiedMessages>();
-            this.steamPublishedFile = steamUnifiedMessages.CreateService<PublishedFile>();
-            this.steamContent = this.steamClient.GetHandler<SteamContent>();
+            this.steamUser = this.steamClient.GetHandler<SteamUser>()!;
+            this.steamApps = this.steamClient.GetHandler<SteamApps>()!;
+            this.steamCloud = this.steamClient.GetHandler<SteamCloud>()!;
+            var steamUnifiedMessages = this.steamClient.GetHandler<SteamUnifiedMessages>()!;
+            this.steamPublishedFile = steamUnifiedMessages.CreateService<PublishedFile>()!;
+            this.steamContent = this.steamClient.GetHandler<SteamContent>()!;
 
             this.callbacks = new CallbackManager(this.steamClient);
 
@@ -142,6 +142,7 @@ namespace DepotDownloader
 
         public async Task RequestAppInfo(uint appId, bool bForce = false)
         {
+            if (steamApps == null) return;
             if ((AppInfo.ContainsKey(appId) && !bForce) || bAborted)
                 return;
 
@@ -169,7 +170,11 @@ namespace DepotDownloader
                 request.AccessToken = TokenCFG.appToken;
             }
 
-            var appInfoMultiple = await steamApps.PICSGetProductInfo([request], []);
+            var apps = steamApps;
+            if (apps == null) return;
+            var appInfoMultiple = await apps.PICSGetProductInfo([request], []);
+
+            if (appInfoMultiple == null || appInfoMultiple.Results == null) return;
 
             foreach (var appInfo in appInfoMultiple.Results)
             {
@@ -190,6 +195,7 @@ namespace DepotDownloader
 
         public async Task RequestPackageInfo(IEnumerable<uint> packageIds)
         {
+            if (steamApps == null) return;
             var packages = packageIds.ToList();
             packages.RemoveAll(PackageInfo.ContainsKey);
 
@@ -215,7 +221,11 @@ namespace DepotDownloader
                 packageRequests.Add(request);
             }
 
-            var packageInfoMultiple = await steamApps.PICSGetProductInfo([], packageRequests);
+            var apps = steamApps;
+            if (apps == null) return;
+            var packageInfoMultiple = await apps.PICSGetProductInfo([], packageRequests);
+
+            if (packageInfoMultiple == null || packageInfoMultiple.Results == null) return;
 
             foreach (var packageInfo in packageInfoMultiple.Results)
             {
@@ -290,7 +300,13 @@ namespace DepotDownloader
 
         public async Task RequestCDNAuthToken(uint appid, uint depotid, Server server)
         {
-            var cdnKey = (depotid, server.Host!);
+            if (server.Host == null)
+            {
+                Console.WriteLine($"Error: RequestCDNAuthToken called with null server host for {server}");
+                return;
+            }
+
+            var cdnKey = (depotid, server.Host);
             var completion = new TaskCompletionSource<SteamContent.CDNAuthToken>();
 
             if (bAborted || !CDNAuthTokens.TryAdd(cdnKey, completion))
@@ -345,7 +361,7 @@ namespace DepotDownloader
             return privateBeta.DepotSection;
         }
 
-        public async Task<PublishedFileDetails> GetPublishedFileDetails(uint appId, PublishedFileID pubFile)
+        public async Task<PublishedFileDetails?> GetPublishedFileDetails(uint appId, PublishedFileID pubFile)
         {
             var pubFileRequest = new CPublishedFile_GetDetails_Request { appid = appId };
             pubFileRequest.publishedfileids.Add(pubFile);
@@ -361,7 +377,7 @@ namespace DepotDownloader
         }
 
 
-        public async Task<SteamCloud.UGCDetailsCallback> GetUGCDetails(UGCHandle ugcHandle)
+        public async Task<SteamCloud.UGCDetailsCallback?> GetUGCDetails(UGCHandle ugcHandle)
         {
             var callback = await steamCloud.RequestUGCDetails(ugcHandle);
 
@@ -451,15 +467,20 @@ namespace DepotDownloader
 
                 if (authSession is null)
                 {
-                    if (logonDetails.Username != null && logonDetails.Password != null && logonDetails.AccessToken is null)
+                    var username = logonDetails.Username;
+                    if (username != null && logonDetails.Password != null && logonDetails.AccessToken is null)
                     {
                         try
                         {
-                            _ = AccountSettingsStore.Instance.GuardData.TryGetValue(logonDetails.Username, out var guarddata);
+                            string? guarddata = null;
+                            if (AccountSettingsStore.Instance != null)
+                            {
+                                AccountSettingsStore.Instance.GuardData.TryGetValue(username, out guarddata);
+                            }
                             authSession = await steamClient.Authentication.BeginAuthSessionViaCredentialsAsync(new AuthSessionDetails
                             {
                                 DeviceFriendlyName = nameof(DepotDownloader),
-                                Username = logonDetails.Username,
+                                Username = username,
                                 Password = logonDetails.Password,
                                 IsPersistentSession = ContentDownloader.Config.RememberPassword,
                                 GuardData = guarddata,
@@ -526,20 +547,24 @@ namespace DepotDownloader
                         logonDetails.Password = null;
                         logonDetails.AccessToken = result.RefreshToken;
 
-                        if (result.NewGuardData != null)
+                        var settings = AccountSettingsStore.Instance;
+                        if (settings != null && result.AccountName != null)
                         {
-                            AccountSettingsStore.Instance.GuardData[result.AccountName] = result.NewGuardData;
-                            if (ContentDownloader.Config.UseQrCode)
+                            if (result.NewGuardData != null)
                             {
-                                Console.WriteLine($"Success! Next time you can login with -username {result.AccountName} -remember-password instead of -qr.");
+                                settings.GuardData[result.AccountName] = result.NewGuardData;
+                                if (ContentDownloader.Config.UseQrCode)
+                                {
+                                    Console.WriteLine($"Success! Next time you can login with -username {result.AccountName} -remember-password instead of -qr.");
+                                }
                             }
+                            else
+                            {
+                                settings.GuardData.Remove(result.AccountName);
+                            }
+                            settings.LoginTokens[result.AccountName] = result.RefreshToken;
+                            AccountSettingsStore.Save();
                         }
-                        else
-                        {
-                            AccountSettingsStore.Instance.GuardData.Remove(result.AccountName);
-                        }
-                        AccountSettingsStore.Instance.LoginTokens[result.AccountName] = result.RefreshToken;
-                        AccountSettingsStore.Save();
                     }
                     catch (TaskCanceledException)
                     {
@@ -603,7 +628,7 @@ namespace DepotDownloader
         {
             var isSteamGuard = loggedOn.Result == EResult.AccountLogonDenied;
             var is2FA = loggedOn.Result == EResult.AccountLoginDeniedNeedTwoFactor;
-            var isAccessToken = ContentDownloader.Config.RememberPassword && logonDetails.AccessToken != null &&
+            var isAccessToken = ContentDownloader.Config != null && ContentDownloader.Config.RememberPassword && logonDetails.AccessToken != null &&
                 loggedOn.Result is EResult.InvalidPassword
                 or EResult.InvalidSignature
                 or EResult.AccessDenied
@@ -630,7 +655,10 @@ namespace DepotDownloader
                 }
                 else if (isAccessToken)
                 {
-                    AccountSettingsStore.Instance.LoginTokens.Remove(logonDetails.Username);
+                    if (logonDetails.Username != null && AccountSettingsStore.Instance != null)
+                    {
+                        AccountSettingsStore.Instance.LoginTokens.Remove(logonDetails.Username);
+                    }
                     AccountSettingsStore.Save();
 
                     // TODO: Handle gracefully by falling back to password prompt?
@@ -683,10 +711,11 @@ namespace DepotDownloader
             this.seq++;
             IsLoggedOn = true;
 
-            if (ContentDownloader.Config.CellID == 0)
+            var config = ContentDownloader.Config;
+            if (config != null && config.CellID == 0)
             {
                 Console.WriteLine("Using Steam3 suggested CellID: " + loggedOn.CellID);
-                ContentDownloader.Config.CellID = (int)loggedOn.CellID;
+                config.CellID = (int)loggedOn.CellID;
             }
         }
 

@@ -296,7 +296,15 @@ namespace SteamPP.ViewModels
                             }
                         }
 
-                        var appListPath = customPath ?? Path.Combine(_steamService.GetSteamPath(), "AppList");
+                        var steamPath = _steamService.GetSteamPath();
+                        if (customPath == null && steamPath == null)
+                        {
+                            _notificationService.ShowError("Could not find Steam installation path.");
+                            IsInstalling = false;
+                            return;
+                        }
+
+                        var appListPath = customPath ?? Path.Combine(steamPath!, "AppList");
                         var currentCount = Directory.Exists(appListPath) ? Directory.GetFiles(appListPath, "*.txt").Length : 0;
 
                         if (currentCount >= 128)
@@ -786,6 +794,8 @@ namespace SteamPP.ViewModels
             try
             {
                 var steamPath = _steamService.GetSteamPath();
+                if (steamPath == null) return "0";
+
                 var depotCachePath = Path.Combine(steamPath, "depotcache");
 
                 if (Directory.Exists(depotCachePath))

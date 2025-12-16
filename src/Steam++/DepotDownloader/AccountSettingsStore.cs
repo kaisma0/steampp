@@ -27,7 +27,7 @@ namespace DepotDownloader
         [ProtoMember(5, IsRequired = false)]
         public Dictionary<string, string> GuardData { get; private set; }
 
-        string FileName;
+        string? FileName;
 
         AccountSettingsStore()
         {
@@ -41,7 +41,7 @@ namespace DepotDownloader
             get { return Instance != null; }
         }
 
-        public static AccountSettingsStore Instance;
+        public static AccountSettingsStore? Instance;
         static readonly IsolatedStorageFile IsolatedStorage = IsolatedStorageFile.GetUserStoreForAssembly();
 
         public static void LoadFromFile(string filename)
@@ -68,12 +68,15 @@ namespace DepotDownloader
                 Instance = new AccountSettingsStore();
             }
 
+            if (Instance == null)
+                Instance = new AccountSettingsStore();
+
             Instance.FileName = filename;
         }
 
         public static void Save()
         {
-            if (!Loaded)
+            if (!Loaded || Instance!.FileName == null)
                 throw new Exception("Saved config before loading");
 
             try
