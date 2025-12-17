@@ -49,50 +49,11 @@
                     <Setter Property="FontSize" Value="14"/>
                     <Setter Property="FontWeight" Value="SemiBold"/>
                 </Style>
-
-                <!-- Sub-tab style (slightly smaller, different padding) -->
-                <Style x:Key="SubTabItemStyle" TargetType="TabItem">
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="TabItem">
-                                <Border Name="Border"
-                                        Background="{DynamicResource PrimaryDarkBrush}"
-                                        BorderThickness="0"
-                                        CornerRadius="6,6,0,0"
-                                        Padding="15,8"
-                                        Margin="0,0,3,0">
-                                    <ContentPresenter ContentSource="Header"/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsSelected" Value="True">
-                                        <Setter TargetName="Border" Property="Background" Value="{DynamicResource SecondaryDarkBrush}"/>
-                                    </Trigger>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Border" Property="Background" Value="{DynamicResource SecondaryDarkBrush}"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-                    <Setter Property="FontSize" Value="13"/>
-                    <Setter Property="FontWeight" Value="Normal"/>
-                </Style>
             </TabControl.Resources>
 
-            <!-- Denuvo Tab -->
-            <TabItem Header="🛡️ Denuvo">
-                <TabControl Background="Transparent" BorderThickness="0" Margin="0,10,0,0" HorizontalContentAlignment="Stretch">
-                    <TabControl.Resources>
-                        <Style TargetType="TabItem" BasedOn="{StaticResource SubTabItemStyle}">
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                        </Style>
-                    </TabControl.Resources>
-
-                    <TabItem Header="GBE Token Generator">
-                        <views:GBEDenuvoControl HorizontalAlignment="Stretch"/>
-                    </TabItem>
-                </TabControl>
+            <!-- GBE Tab -->
+            <TabItem Header="GBE">
+                <views:GBEDenuvoControl HorizontalAlignment="Stretch" Margin="0,10,0,0"/>
             </TabItem>
 
             <!-- External Resources Tab -->
@@ -133,6 +94,25 @@
                                            Margin="0,0,0,15"/>
                                 <Button Content="🔗 Download GreenLuma"
                                         Command="{Binding OpenGreenLumaCommand}"
+                                        HorizontalAlignment="Left"
+                                        Padding="20,10"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Fixes Section -->
+                        <Border Style="{StaticResource ModernCardStyle}" Margin="0,0,0,20">
+                            <StackPanel>
+                                <TextBlock Text="Fixes"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="0,0,0,10"/>
+                                <TextBlock Text="Download Fixes and DLC Unlockers for various games"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,15"/>
+                                <Button Content="🔗 Download Fixes"
+                                        Command="{Binding OpenFixesCommand}"
                                         HorizontalAlignment="Left"
                                         Padding="20,10"/>
                             </StackPanel>

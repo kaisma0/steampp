@@ -9,7 +9,7 @@
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <AssemblyName>Steam++</AssemblyName>
     <RootNamespace>SteamPP</RootNamespace>
-    <Version Condition="'$(Version)' == ''">2025.12.03</Version>
+    <Version Condition="'$(Version)' == ''">2025.12.04</Version>
     <Authors>kaisma0</Authors>
     <Description>Steam++</Description>
     <Product>Steam++</Product>

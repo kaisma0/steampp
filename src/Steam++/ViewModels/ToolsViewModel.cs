@@ -21,6 +21,12 @@ namespace SteamPP.ViewModels
             OpenUrl("https://cs.rin.ru/forum/viewtopic.php?p=2063857#p2063857");
         }
 
+        [RelayCommand]
+        private void OpenFixes()
+        {
+            OpenUrl("https://github.com/kaisma0/fixes");
+        }
+
 
 
         private void OpenUrl(string url)
