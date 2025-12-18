@@ -1,4 +1,5 @@
 using SteamPP.Helpers;
+using Microsoft.Extensions.DependencyInjection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SteamPP.Services;
@@ -13,6 +14,7 @@ namespace SteamPP.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
+        private readonly IServiceProvider _serviceProvider;
         private readonly SteamService _steamService;
         private readonly SettingsService _settingsService;
         private readonly UpdateService _updateService;
@@ -25,42 +27,42 @@ namespace SteamPP.ViewModels
         [ObservableProperty]
         private string _currentPageName = "Home";
 
-        public HomeViewModel HomeViewModel { get; }
-        public LuaInstallerViewModel LuaInstallerViewModel { get; }
-        public LibraryViewModel LibraryViewModel { get; }
-        public StoreViewModel StoreViewModel { get; }
-        public DownloadsViewModel DownloadsViewModel { get; }
-        public ToolsViewModel ToolsViewModel { get; }
-        public SettingsViewModel SettingsViewModel { get; }
-        public SupportViewModel SupportViewModel { get; }
+        private HomeViewModel? _homeViewModel;
+        public HomeViewModel HomeViewModel => _homeViewModel ??= _serviceProvider.GetRequiredService<HomeViewModel>();
+
+        private LuaInstallerViewModel? _luaInstallerViewModel;
+        public LuaInstallerViewModel LuaInstallerViewModel => _luaInstallerViewModel ??= _serviceProvider.GetRequiredService<LuaInstallerViewModel>();
+
+        private LibraryViewModel? _libraryViewModel;
+        public LibraryViewModel LibraryViewModel => _libraryViewModel ??= _serviceProvider.GetRequiredService<LibraryViewModel>();
+
+        private StoreViewModel? _storeViewModel;
+        public StoreViewModel StoreViewModel => _storeViewModel ??= _serviceProvider.GetRequiredService<StoreViewModel>();
+
+        private DownloadsViewModel? _downloadsViewModel;
+        public DownloadsViewModel DownloadsViewModel => _downloadsViewModel ??= _serviceProvider.GetRequiredService<DownloadsViewModel>();
+
+        private ToolsViewModel? _toolsViewModel;
+        public ToolsViewModel ToolsViewModel => _toolsViewModel ??= _serviceProvider.GetRequiredService<ToolsViewModel>();
+
+        private SettingsViewModel? _settingsViewModel;
+        public SettingsViewModel SettingsViewModel => _settingsViewModel ??= _serviceProvider.GetRequiredService<SettingsViewModel>();
+
+        private SupportViewModel? _supportViewModel;
+        public SupportViewModel SupportViewModel => _supportViewModel ??= _serviceProvider.GetRequiredService<SupportViewModel>();
 
         public MainViewModel(
+            IServiceProvider serviceProvider,
             SteamService steamService,
             SettingsService settingsService,
             UpdateService updateService,
-            NotificationService notificationService,
-            HomeViewModel homeViewModel,
-            LuaInstallerViewModel luaInstallerViewModel,
-            LibraryViewModel libraryViewModel,
-            StoreViewModel storeViewModel,
-            DownloadsViewModel downloadsViewModel,
-            ToolsViewModel toolsViewModel,
-            SettingsViewModel settingsViewModel,
-            SupportViewModel supportViewModel)
+            NotificationService notificationService)
         {
+            _serviceProvider = serviceProvider;
             _steamService = steamService;
             _settingsService = settingsService;
             _updateService = updateService;
             _notificationService = notificationService;
-
-            HomeViewModel = homeViewModel;
-            LuaInstallerViewModel = luaInstallerViewModel;
-            LibraryViewModel = libraryViewModel;
-            StoreViewModel = storeViewModel;
-            DownloadsViewModel = downloadsViewModel;
-            ToolsViewModel = toolsViewModel;
-            SettingsViewModel = settingsViewModel;
-            SupportViewModel = supportViewModel;
 
             // Start at Home page
             CurrentPage = GetOrCreateView("Home", () => new HomePage { DataContext = HomeViewModel });
