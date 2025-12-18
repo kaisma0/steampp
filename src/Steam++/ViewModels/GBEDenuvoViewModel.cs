@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using SteamPP.Services;
 using SteamPP.Services.GBE;
 using System;
@@ -21,17 +22,36 @@ namespace SteamPP.ViewModels
         private string _outputPath = string.Empty;
 
         [ObservableProperty]
+        private string _playerName = "Player";
+
+        [ObservableProperty]
+        private string _steamId = string.Empty;
+
+        [ObservableProperty]
         private bool _isDenuvo;
+
+        [ObservableProperty]
+        private bool _useCustomToken;
+
+        [ObservableProperty]
+        private string _customTokenSteamId = string.Empty;
+
+        [ObservableProperty]
+        private string _customToken = string.Empty;
 
         public GBEDenuvoViewModel()
         {
-            _settingsService = new SettingsService();
+            _settingsService = App.Current.Services.GetRequiredService<SettingsService>();
             var settings = _settingsService.LoadSettings();
 
             // Load saved path or use Desktop as default
             OutputPath = !string.IsNullOrEmpty(settings.GBETokenOutputPath)
                 ? settings.GBETokenOutputPath
                 : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+
+            // Load saved player name and steam id
+            PlayerName = !string.IsNullOrEmpty(settings.GBEPlayerName) ? settings.GBEPlayerName : "Player";
+            SteamId = settings.GBESteamId;
         }
 
         [ObservableProperty]
@@ -82,6 +102,16 @@ namespace SteamPP.ViewModels
                 return;
             }
 
+            if (UseCustomToken)
+            {
+                if (string.IsNullOrWhiteSpace(CustomTokenSteamId) || string.IsNullOrWhiteSpace(CustomToken))
+                {
+                    MessageBox.Show("Please enter both Token SteamID and Token.", "Missing Information", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+            }
+
             // Check for API key
             var settings = _settingsService.LoadSettings();
             if (string.IsNullOrWhiteSpace(settings.GBESteamWebApiKey))
@@ -90,6 +120,11 @@ namespace SteamPP.ViewModels
                     "API Key Required", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+
+            // Save player name and steam id to settings
+            settings.GBEPlayerName = PlayerName;
+            settings.GBESteamId = SteamId;
+            _settingsService.SaveSettings(settings);
 
             IsGenerating = true;
             LogOutput = string.Empty;
@@ -101,7 +136,16 @@ namespace SteamPP.ViewModels
                 Log($"Output: {OutputPath}\n");
 
                 string finalZipPath = Path.Combine(OutputPath, $"gbe [{appIdInt}].zip");
-                var generator = new GoldbergLogic(appIdInt, finalZipPath, settings.GBESteamWebApiKey, IsDenuvo, (message, isError) =>
+                var generator = new GoldbergLogic(
+                    appIdInt, 
+                    finalZipPath, 
+                    settings.GBESteamWebApiKey, 
+                    IsDenuvo, 
+                    PlayerName, 
+                    SteamId, 
+                    UseCustomToken ? CustomToken : null,
+                    UseCustomToken ? CustomTokenSteamId : null,
+                    (message, isError) =>
                 {
                     Application.Current.Dispatcher.Invoke(() => Log(message, isError));
                 });

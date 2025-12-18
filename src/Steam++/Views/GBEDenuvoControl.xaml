@@ -64,12 +64,81 @@
                     </StackPanel>
                 </Border>
 
+                <!-- User Configuration -->
+                <Border Style="{StaticResource ModernCardStyle}" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="User Configuration"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   Margin="0,0,0,10"/>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Player Name:" Grid.Column="0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0" Width="100"/>
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding PlayerName, UpdateSourceTrigger=PropertyChanged}"/>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Steam ID:" Grid.Column="0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0" Width="100"/>
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding SteamId, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Optional. Leave empty for default behavior."/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <!-- Denuvo Option -->
-                <CheckBox Content="Generate Denuvo Ticket (Requires Steam running)"
-                          IsChecked="{Binding IsDenuvo}"
-                          Foreground="{DynamicResource TextPrimaryBrush}"
-                          Margin="0,0,0,15"
-                          FontSize="14"/>
+                <Border Style="{StaticResource ModernCardStyle}" Margin="0,0,0,15">
+                    <StackPanel>
+                        <CheckBox Content="Generate Denuvo Ticket (Requires Steam running)"
+                                  IsChecked="{Binding IsDenuvo}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  Margin="0,0,0,10"
+                                  FontSize="14"/>
+
+                        <StackPanel Margin="25,0,0,0">
+                            <CheckBox Content="Use your own Token"
+                                      IsChecked="{Binding UseCustomToken}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                      Margin="0,0,0,10"
+                                      FontSize="13"
+                                      IsEnabled="{Binding IsDenuvo}"/>
+
+                            <Grid Margin="0,0,0,10" IsEnabled="{Binding UseCustomToken}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Token SteamID:" Grid.Column="0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0" Width="100"/>
+                                <TextBox Grid.Column="1"
+                                         Text="{Binding CustomTokenSteamId, UpdateSourceTrigger=PropertyChanged}"/>
+                            </Grid>
+
+                            <Grid IsEnabled="{Binding UseCustomToken}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Token:" Grid.Column="0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0" Width="100"/>
+                                <TextBox Grid.Column="1"
+                                         Text="{Binding CustomToken, UpdateSourceTrigger=PropertyChanged}"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
 
                 <!-- Generate Button -->
                 <Button Content="⚙️ Generate Configuration"

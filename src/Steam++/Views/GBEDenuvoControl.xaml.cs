@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using SteamPP.Services;
 using SteamPP.ViewModels;
 using SteamPP.Views.Dialogs;
@@ -33,7 +34,7 @@ namespace SteamPP.Views
                 // Defer the MessageBox to avoid dispatcher issues
                 Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    var settingsService = new SettingsService();
+                    var settingsService = App.Current.Services.GetRequiredService<SettingsService>();
                     var settings = settingsService.LoadSettings();
 
                     if (string.IsNullOrWhiteSpace(settings.GBESteamWebApiKey))

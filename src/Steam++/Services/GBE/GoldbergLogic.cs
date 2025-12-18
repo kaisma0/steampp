@@ -21,18 +21,26 @@ namespace SteamPP.Services.GBE
         private readonly string _outputPath;
         private readonly string _apiKey;
         private readonly bool _isDenuvo;
+        private readonly string _playerName;
+        private readonly string _customSteamId;
+        private readonly string? _providedToken;
+        private readonly string? _providedTokenSteamId;
         private readonly Action<string, bool> _log;
         private static readonly HttpClient HttpClient = new HttpClient()
         {
             Timeout = TimeSpan.FromSeconds(30)
         };
 
-        public GoldbergLogic(int appId, string outputPath, string apiKey, bool isDenuvo, Action<string, bool> logAction)
+        public GoldbergLogic(int appId, string outputPath, string apiKey, bool isDenuvo, string playerName, string customSteamId, string? providedToken, string? providedTokenSteamId, Action<string, bool> logAction)
         {
             _appId = appId;
             _outputPath = outputPath;
             _apiKey = apiKey;
             _isDenuvo = isDenuvo;
+            _playerName = playerName;
+            _customSteamId = customSteamId;
+            _providedToken = providedToken;
+            _providedTokenSteamId = providedTokenSteamId;
             _log = logAction;
         }
 
@@ -48,16 +56,29 @@ namespace SteamPP.Services.GBE
 
                 if (_isDenuvo)
                 {
-                    var ticketResult = await GenerateTicketAsync(settingsPath);
-                    if (!ticketResult.Success)
+                    if (!string.IsNullOrEmpty(_providedToken) && !string.IsNullOrEmpty(_providedTokenSteamId))
                     {
-                        _log("Aborting Goldberg setup due to ticket generation failure.", true);
-                        return false;
+                        _log("Using provided custom token and SteamID.", false);
+                        CreateUserConfig(settingsPath, _providedTokenSteamId, _providedToken);
+                    }
+                    else
+                    {
+                        var ticketResult = await GenerateTicketAsync(settingsPath);
+                        if (!ticketResult.Success)
+                        {
+                            _log("Aborting Goldberg setup due to ticket generation failure.", true);
+                            return false;
+                        }
                     }
                 }
                 else
                 {
                     _log("Skipping Denuvo ticket generation.", false);
+                    // If Denuvo is unchecked but a custom SteamID is provided, we still generate the user config
+                    if (!string.IsNullOrWhiteSpace(_customSteamId))
+                    {
+                        CreateUserConfig(settingsPath, "0", null);
+                    }
                 }
 
                 _log("\n--- Generating Config Files ---", false);
@@ -134,7 +155,7 @@ namespace SteamPP.Services.GBE
                         if (ulong.TryParse(parts[2], out ulong steamId))
                         {
                             _log("✓ Ticket generated successfully!", false);
-                            CreateUserConfig(settingsPath, steamId, ticket);
+                            CreateUserConfig(settingsPath, steamId.ToString(), ticket);
                             return (true, ticket, steamId);
                         }
                     }
@@ -216,14 +237,37 @@ namespace SteamPP.Services.GBE
             }
         }
 
-        private void CreateUserConfig(string settingsPath, ulong steamId, string ticket)
+        private void CreateUserConfig(string settingsPath, string generatedSteamId, string? ticket)
         {
             var configPath = Path.Combine(settingsPath, "configs.user.ini");
             var content = new StringBuilder();
             content.AppendLine("[user::general]");
-            content.AppendLine("account_name=Player");
-            content.AppendLine($"account_steamid={steamId}");
-            content.AppendLine($"ticket={ticket}");
+            
+            string name = string.IsNullOrWhiteSpace(_playerName) ? "Player" : _playerName;
+            content.AppendLine($"account_name={name}");
+
+            if (_isDenuvo)
+            {
+                content.AppendLine($"account_steamid={generatedSteamId}");
+                if (!string.IsNullOrEmpty(ticket))
+                {
+                    content.AppendLine($"ticket={ticket}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(_customSteamId))
+                {
+                    content.AppendLine($"alt_steamid={_customSteamId}");
+                }
+            }
+            else
+            {
+                // If we are here, it means customSteamId is provided (checked in GenerateAsync)
+                if (!string.IsNullOrWhiteSpace(_customSteamId))
+                {
+                    content.AppendLine($"account_steamid={_customSteamId}");
+                }
+            }
+
             content.AppendLine("language=english");
             File.WriteAllText(configPath, content.ToString());
             _log("✓ Created configs.user.ini", false);

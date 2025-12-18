@@ -30,6 +30,9 @@ namespace SteamPP
         private TrayIconService? _trayIconService;
         private MainWindow? _mainWindow;
 
+        public IServiceProvider Services => _host.Services;
+        public static new App Current => (App)Application.Current;
+
         public App()
         {
             _host = Host.CreateDefaultBuilder()

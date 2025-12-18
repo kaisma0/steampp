@@ -94,6 +94,8 @@ namespace SteamPP.Models
         // GBE Token Generator Configuration
         public string GBETokenOutputPath { get; set; } = string.Empty;
         public string GBESteamWebApiKey { get; set; } = string.Empty;
+        public string GBEPlayerName { get; set; } = "Player";
+        public string GBESteamId { get; set; } = string.Empty;
 
         // Notification Preferences
         public bool DisableAllNotifications { get; set; } = false;
