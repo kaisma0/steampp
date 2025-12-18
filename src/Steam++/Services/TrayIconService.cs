@@ -81,7 +81,7 @@ namespace SteamPP.Services
 
             // Create context menu and populate it initially
             var contextMenu = new ContextMenuStrip();
-            RebuildContextMenu(contextMenu);  // Build menu immediately
+            // RebuildContextMenu(contextMenu);  // Deferred to Opening event
             contextMenu.Opening += (s, e) => RebuildContextMenu(contextMenu);  // Rebuild on each open
 
             _notifyIcon.ContextMenuStrip = contextMenu;
