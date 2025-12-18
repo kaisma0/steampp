@@ -71,9 +71,14 @@ namespace SteamPP.Views
 
                 if (IsDiscordLoginUrl(currentUrl))
                 {
+                    WindowState = WindowState.Maximized;
                     StatusText.Text = "Checking for 'Authorize' button...";
                     await AttemptClickContinueWithDiscord();
                     return;
+                }
+                else
+                {
+                    WindowState = WindowState.Normal;
                 }
 
                 if (currentUrl.TrimEnd('/') == BaseUrl)
@@ -123,11 +128,6 @@ namespace SteamPP.Views
                             return 'clicked_login';
                         }
 
-                        const scrollables = document.querySelectorAll('div[class*=""scroller""], div[style*=""overflow""]');
-                        for (const el of scrollables) {
-                            el.scrollTop = el.scrollHeight;
-                        }
-                        
                         const buttons = document.querySelectorAll('button');
                         for (const btn of buttons) {
                             const text = (btn.innerText || '').toLowerCase();
