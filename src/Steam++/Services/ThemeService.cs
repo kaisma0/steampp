@@ -7,6 +7,8 @@ namespace SteamPP.Services
 {
     public class ThemeService
     {
+        public event Action? ThemeChanged;
+
         public void ApplyTheme(AppTheme theme)
         {
             var themeFile = GetThemeFileName(theme);
@@ -31,6 +33,8 @@ namespace SteamPP.Services
                 {
                     Application.Current.Resources.MergedDictionaries.Add(dict);
                 }
+
+                ThemeChanged?.Invoke();
             });
         }
 

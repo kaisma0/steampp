@@ -10,17 +10,22 @@ namespace SteamPP.Views
     public partial class MainWindow : Window
     {
         private readonly SettingsService _settingsService;
+        private readonly ThemeService _themeService;
 
-        public MainWindow(MainViewModel viewModel, SettingsService settingsService)
+        public MainWindow(MainViewModel viewModel, SettingsService settingsService, ThemeService themeService)
         {
             InitializeComponent();
             DataContext = viewModel;
             _settingsService = settingsService;
+            _themeService = themeService;
 
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
             StateChanged += MainWindow_StateChanged;
             SourceInitialized += MainWindow_SourceInitialized;
+
+            // Subscribe to theme changes
+            _themeService.ThemeChanged += RefreshTitleBarColor;
 
             // Restore window size
             var settings = _settingsService.LoadSettings();
@@ -42,8 +47,7 @@ namespace SteamPP.Views
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // Update check is now handled by App.xaml.cs based on AutoUpdate settings
-            // No need to check here on every startup
+             RefreshTitleBarColor();
         }
 
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -80,128 +84,54 @@ namespace SteamPP.Views
             }
         }
 
-        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                WindowState = WindowState == WindowState.Maximized
-                    ? WindowState.Normal
-                    : WindowState.Maximized;
-            }
-            else
-            {
-                DragMove();
-            }
-        }
-
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
-        {
-            WindowState = WindowState.Minimized;
-        }
-
-        private void MaximizeButton_Click(object sender, RoutedEventArgs e)
-        {
-            WindowState = WindowState == WindowState.Maximized
-                ? WindowState.Normal
-                : WindowState.Maximized;
-        }
-
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            // Check if we should minimize to tray instead of closing
-            var settings = _settingsService.LoadSettings();
-            if (settings.MinimizeToTray)
-            {
-                var app = Application.Current as App;
-                var trayService = app?.GetTrayIconService();
-                trayService?.ShowInTray();
-            }
-            else
-            {
-                Close();
-            }
-        }
-
         private void MainWindow_SourceInitialized(object? sender, System.EventArgs e)
         {
-            // Fix for maximize issue - adjust max size to work area
-            var handle = new WindowInteropHelper(this).Handle;
-            if (handle != IntPtr.Zero)
-            {
-                HwndSource.FromHwnd(handle)?.AddHook(WindowProc);
-            }
+            RefreshTitleBarColor();
         }
 
         private void MainWindow_StateChanged(object? sender, System.EventArgs e)
         {
             var settings = _settingsService.LoadSettings();
             settings.WindowState = WindowState;
-
-            if (WindowState == WindowState.Maximized)
-            {
-                var screen = System.Windows.Forms.Screen.FromHandle(new WindowInteropHelper(this).Handle);
-                var source = PresentationSource.FromVisual(this);
-                double dpiScale = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
-                MaxHeight = (screen.WorkingArea.Height / dpiScale) + 14;
-                MaxWidth = (screen.WorkingArea.Width / dpiScale) + 14;
-            }
-            else
-            {
-                MaxHeight = double.PositiveInfinity;
-                MaxWidth = double.PositiveInfinity;
-            }
         }
 
-        private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        private void RefreshTitleBarColor()
         {
-            const int WM_GETMINMAXINFO = 0x0024;
+            var helper = new WindowInteropHelper(this);
+            IntPtr handle = helper.Handle;
 
-            if (msg == WM_GETMINMAXINFO)
+            if (handle == IntPtr.Zero) return;
+
+            // Get colors from current theme resources
+            var backgroundBrush = Application.Current.Resources["PrimaryDarkBrush"] as System.Windows.Media.SolidColorBrush;
+            var foregroundBrush = Application.Current.Resources["TextPrimaryBrush"] as System.Windows.Media.SolidColorBrush;
+
+            if (backgroundBrush != null)
             {
-                var screen = System.Windows.Forms.Screen.FromHandle(hwnd);
-                if (screen != null)
-                {
-                    var workArea = screen.WorkingArea;
-                    var monitorArea = screen.Bounds;
-
-                    var source = PresentationSource.FromVisual(this);
-                    double dpiScale = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
-
-                    int minWidth = (int)(MinWidth * dpiScale);
-                    int minHeight = (int)(MinHeight * dpiScale);
-
-                    unsafe
-                    {
-                        var mmi = (MINMAXINFO*)lParam;
-                        mmi->ptMaxPosition.x = workArea.Left - monitorArea.Left;
-                        mmi->ptMaxPosition.y = workArea.Top - monitorArea.Top;
-                        mmi->ptMaxSize.x = workArea.Width;
-                        mmi->ptMaxSize.y = workArea.Height;
-                        mmi->ptMinTrackSize.x = minWidth;
-                        mmi->ptMinTrackSize.y = minHeight;
-                    }
-                    handled = true;
-                }
+                int color = (backgroundBrush.Color.B << 16) | (backgroundBrush.Color.G << 8) | backgroundBrush.Color.R;
+                DwmSetWindowAttribute(handle, DWMWINDOWATTRIBUTE.DWMWA_CAPTION_COLOR, ref color, sizeof(int));
             }
 
-            return IntPtr.Zero;
+            if (foregroundBrush != null)
+            {
+                int color = (foregroundBrush.Color.B << 16) | (foregroundBrush.Color.G << 8) | foregroundBrush.Color.R;
+                DwmSetWindowAttribute(handle, DWMWINDOWATTRIBUTE.DWMWA_TEXT_COLOR, ref color, sizeof(int));
+            }
+
+            // Set dark/light mode for system buttons based on background brightness
+            // Assuming dark theme for now as per default resources, but can be dynamic
+            int useImmersiveDarkMode = 1; // True
+            DwmSetWindowAttribute(handle, DWMWINDOWATTRIBUTE.DWMWA_USE_IMMERSIVE_DARK_MODE, ref useImmersiveDarkMode, sizeof(int));
         }
 
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-        private struct POINT
+        private enum DWMWINDOWATTRIBUTE : uint
         {
-            public int x;
-            public int y;
+            DWMWA_USE_IMMERSIVE_DARK_MODE = 20,
+            DWMWA_CAPTION_COLOR = 35,
+            DWMWA_TEXT_COLOR = 36
         }
 
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-        private unsafe struct MINMAXINFO
-        {
-            public POINT ptReserved;
-            public POINT ptMaxSize;
-            public POINT ptMaxPosition;
-            public POINT ptMinTrackSize;
-            public POINT ptMaxTrackSize;
-        }
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll", PreserveSig = true)]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, DWMWINDOWATTRIBUTE attr, ref int attrValue, int attrSize);
     }
 }

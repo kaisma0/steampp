@@ -8,19 +8,10 @@
         Width="1200"
         MinHeight="600"
         MinWidth="800"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
         ResizeMode="CanResize"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="SingleBorderWindow">
 
-    <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="40"
-                      ResizeBorderThickness="5"
-                      CornerRadius="0"
-                      GlassFrameThickness="0"
-                      UseAeroCaptionButtons="False"/>
-    </WindowChrome.WindowChrome>
 
     <Window.Resources>
     </Window.Resources>
@@ -32,144 +23,14 @@
         <Grid>
             <!-- Main Layout -->
             <Grid.RowDefinitions>
-                <RowDefinition Height="40"/>
-                <!-- Title Bar -->
+                <!-- Title Bar Removed (Native) -->
                 <RowDefinition Height="*"/>
                 <!-- Content -->
             </Grid.RowDefinitions>
 
-            <!-- Custom Title Bar -->
-            <Border Grid.Row="0"
-                    Background="{DynamicResource CardBackgroundBrush}"
-                    CornerRadius="0"
-                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                <Grid>
-                    <StackPanel Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Margin="12,0">
-                        <TextBlock Text="Steam++"
-                                   FontSize="14"
-                                   FontWeight="Bold"
-                                   Foreground="{DynamicResource AccentBrush}"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-
-                    <!-- Window Controls -->
-                    <StackPanel Orientation="Horizontal"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Center"
-                                Margin="0,0,8,0"
-                                WindowChrome.IsHitTestVisibleInChrome="True">
-                        <Button Width="36" Height="28"
-                                Foreground="{DynamicResource TextPrimaryBrush}"
-                                BorderThickness="0"
-                                Padding="0"
-                                Click="MinimizeButton_Click"
-                                Cursor="Hand"
-                                WindowChrome.IsHitTestVisibleInChrome="True">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}"
-                                                        Width="36" Height="28"
-                                                        Padding="0">
-                                                    <TextBlock Text="_"
-                                                               FontSize="14"
-                                                               FontWeight="Bold"
-                                                               Foreground="{TemplateBinding Foreground}"
-                                                               HorizontalAlignment="Center"
-                                                               VerticalAlignment="Center"
-                                                               Margin="0,-4,0,0"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#1AFFFFFF"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                        <Button Width="36" Height="28"
-                                Foreground="{DynamicResource TextPrimaryBrush}"
-                                BorderThickness="0"
-                                Padding="0"
-                                Click="MaximizeButton_Click"
-                                Cursor="Hand"
-                                WindowChrome.IsHitTestVisibleInChrome="True">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}"
-                                                        Width="36" Height="28"
-                                                        Padding="0">
-                                                    <TextBlock Text="□"
-                                                               FontSize="12"
-                                                               FontWeight="Normal"
-                                                               Foreground="{TemplateBinding Foreground}"
-                                                               HorizontalAlignment="Center"
-                                                               VerticalAlignment="Center"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#1AFFFFFF"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                        <Button Width="36" Height="28"
-                                Foreground="{DynamicResource TextPrimaryBrush}"
-                                BorderThickness="0"
-                                Padding="0"
-                                Click="CloseButton_Click"
-                                Cursor="Hand"
-                                WindowChrome.IsHitTestVisibleInChrome="True">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}"
-                                                        Width="36" Height="28"
-                                                        Padding="0">
-                                                    <TextBlock Text="✕"
-                                                               FontSize="12"
-                                                               FontWeight="Normal"
-                                                               Foreground="{TemplateBinding Foreground}"
-                                                               HorizontalAlignment="Center"
-                                                               VerticalAlignment="Center"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#E81123"/>
-                                            <Setter Property="Foreground" Value="White"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                    </StackPanel>
-                </Grid>
-            </Border>
 
             <!-- Main Content Area -->
-            <Grid Grid.Row="1">
+            <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="150"/>
                     <!-- Sidebar -->
