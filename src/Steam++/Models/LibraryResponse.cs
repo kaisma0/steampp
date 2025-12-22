@@ -61,6 +61,20 @@ namespace SteamPP.Models
             get => _cachedIconPath;
             set => SetProperty(ref _cachedIconPath, value);
         }
+
+        private bool _isInstalled;
+        public bool IsInstalled
+        {
+            get => _isInstalled;
+            set => SetProperty(ref _isInstalled, value);
+        }
+
+        private bool _hasUpdate;
+        public bool HasUpdate
+        {
+            get => _hasUpdate;
+            set => SetProperty(ref _hasUpdate, value);
+        }
     }
 
     public class SearchResponse

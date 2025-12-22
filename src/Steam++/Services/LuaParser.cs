@@ -41,6 +41,33 @@ namespace SteamPP.Services
             return tokenAppIds;
         }
 
+        public List<(string AppId, string Token)> ParseTokens(string luaContent)
+        {
+            var tokens = new List<(string AppId, string Token)>();
+            var lines = luaContent.Split('\n');
+
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+
+                if (trimmedLine.StartsWith("--"))
+                    continue;
+
+                if (trimmedLine.Contains("--"))
+                    trimmedLine = trimmedLine.Split("--", 2)[0].Trim();
+
+                var tokenMatch = Regex.Match(trimmedLine, @"addtoken\s*\(\s*(\d+)\s*,\s*[""'](\d+)[""']\s*\)", RegexOptions.IgnoreCase);
+                if (tokenMatch.Success)
+                {
+                    var appId = tokenMatch.Groups[1].Value;
+                    var token = tokenMatch.Groups[2].Value;
+                    tokens.Add((appId, token));
+                }
+            }
+
+            return tokens;
+        }
+
         public List<LuaDepotInfo> ParseDepotsFromLua(string luaContent, string? mainAppId = null)
         {
             var depots = new List<LuaDepotInfo>();

@@ -357,21 +357,67 @@
                                         <Run Text="{Binding UploadedDate, StringFormat='Added: {0:MMM d}'}"/>
                                     </TextBlock>
 
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Download Button (show when not installed) -->
+                                        <Button Grid.Column="0" Grid.ColumnSpan="2"
+                                                Content="⬇️ Download"
+                                                Command="{Binding DataContext.DownloadGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                IsEnabled="{Binding ManifestAvailable}"
+                                                Visibility="{Binding IsInstalled, Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
+
+                                        <!-- Installed + Update buttons (show when installed) -->
+                                        <Button Grid.Column="0"
+                                                Content="✓ Installed"
+                                                Style="{StaticResource SecondaryButtonStyle}"
+                                                IsEnabled="False"
+                                                Margin="0,0,5,0"
+                                                Visibility="{Binding IsInstalled, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                                        <Button Grid.Column="1"
+                                                Content="🔄 Update"
+                                                Command="{Binding DataContext.UpdateGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                IsEnabled="{Binding ManifestAvailable}"
+                                                Visibility="{Binding IsInstalled, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Buttons (List View) -->
+                                <StackPanel Grid.Row="0" Grid.Column="2" Grid.RowSpan="3"
+                                            Orientation="Horizontal"
+                                            VerticalAlignment="Center"
+                                            Margin="10"
+                                            Visibility="{Binding DataContext.IsListView, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}">
+
+                                    <!-- Download Button (show when not installed) -->
                                     <Button Content="⬇️ Download"
                                             Command="{Binding DataContext.DownloadGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             CommandParameter="{Binding}"
-                                            IsEnabled="{Binding ManifestAvailable}"/>
-                                </StackPanel>
+                                            Padding="15,8"
+                                            IsEnabled="{Binding ManifestAvailable}"
+                                            Visibility="{Binding IsInstalled, Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
 
-                                <!-- Download Button (List View) -->
-                                <Button Grid.Row="0" Grid.Column="2" Grid.RowSpan="3" Content="⬇️ Download"
-                                        Command="{Binding DataContext.DownloadGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}"
-                                        VerticalAlignment="Center"
-                                        Padding="15,8"
-                                        Margin="10"
-                                        IsEnabled="{Binding ManifestAvailable}"
-                                        Visibility="{Binding DataContext.IsListView, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    <!-- Installed + Update buttons (show when installed) -->
+                                    <Button Content="✓ Installed"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            IsEnabled="False"
+                                            Padding="12,8"
+                                            Margin="0,0,5,0"
+                                            Visibility="{Binding IsInstalled, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                                    <Button Content="🔄 Update"
+                                            Command="{Binding DataContext.UpdateGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            Padding="12,8"
+                                            IsEnabled="{Binding ManifestAvailable}"
+                                            Visibility="{Binding IsInstalled, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                </StackPanel>
                             </Grid>
                         </Border>
                     </DataTemplate>

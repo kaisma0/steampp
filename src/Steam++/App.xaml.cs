@@ -81,6 +81,7 @@ namespace SteamPP
                     services.AddSingleton<LibraryRefreshService>();
                     services.AddSingleton<RecentGamesService>();
                     services.AddSingleton<ProfileService>();
+                    services.AddSingleton<ManifestStorageService>();
                     services.AddSingleton<LuaFileManager>();
 
                     // ViewModels

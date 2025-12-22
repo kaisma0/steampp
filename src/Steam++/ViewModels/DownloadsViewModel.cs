@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using SteamPP.Models;
 using SteamPP.Services;
 using SteamPP.Views.Dialogs;
+using DepotDownloader;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -27,6 +28,7 @@ namespace SteamPP.ViewModels
         private readonly LibraryRefreshService _libraryRefreshService;
         private readonly LoggerService _logger;
         private readonly ProfileService _profileService;
+        private readonly ManifestStorageService _manifestStorageService;
 
         [ObservableProperty]
         private ObservableCollection<DownloadItem> _activeDownloads;
@@ -49,7 +51,8 @@ namespace SteamPP.ViewModels
             SteamApiService steamApiService,
             NotificationService notificationService,
             LibraryRefreshService libraryRefreshService,
-            ProfileService profileService)
+            ProfileService profileService,
+            ManifestStorageService manifestStorageService)
         {
             _downloadService = downloadService;
             _fileInstallService = fileInstallService;
@@ -60,6 +63,7 @@ namespace SteamPP.ViewModels
             _notificationService = notificationService;
             _libraryRefreshService = libraryRefreshService;
             _profileService = profileService;
+            _manifestStorageService = manifestStorageService;
             _logger = new LoggerService("DownloadsView");
 
             ActiveDownloads = _downloadService.ActiveDownloads;
@@ -154,6 +158,20 @@ namespace SteamPP.ViewModels
                     _logger.Info("Step 1: Extracting lua content from zip file...");
                     var luaContent = _downloadService.ExtractLuaContentFromZip(filePath, appId);
                     _logger.Info($"Lua content extracted successfully ({luaContent.Length} characters)");
+
+                    // Extract PICS tokens from lua content and set in TokenCFG for DepotDownloader
+                    var luaParserForTokens = new LuaParser();
+                    var picsTokens = luaParserForTokens.ParseTokens(luaContent);
+                    if (picsTokens.Count > 0)
+                    {
+                        var mainToken = picsTokens.FirstOrDefault(t => t.AppId == appId);
+                        if (mainToken != default && ulong.TryParse(mainToken.Token, out ulong tokenValue))
+                        {
+                            DepotDownloader.TokenCFG.useAppToken = true;
+                            DepotDownloader.TokenCFG.appToken = tokenValue;
+                            _logger.Info($"Set PICS token for app {appId}: {tokenValue}");
+                        }
+                    }
 
                     // Parse depot keys from lua content
                     _logger.Info("Step 2: Parsing depot keys from lua content...");
@@ -256,30 +274,34 @@ namespace SteamPP.ViewModels
 
                     _logger.Info($"User selected language: {languageDialog.SelectedLanguage}");
 
-                    // Filter depots using Python-style logic
-                    StatusMessage = $"Filtering depots for language: {languageDialog.SelectedLanguage}...";
-                    _logger.Info($"Step 6: Filtering depots for language '{languageDialog.SelectedLanguage}' using Python-style logic...");
-                    var filteredDepotIds = depotFilterService.GetDepotsForLanguage(
-                        steamCmdData,
-                        parsedDepotKeys,
-                        languageDialog.SelectedLanguage,
-                        appId);
+                    List<string> filteredDepotIds;
 
-                    if (filteredDepotIds.Count == 0)
+                     if (languageDialog.SelectedLanguage == "All (Skip Filter)")
                     {
-                        _logger.Error("No depots matched the selected language!");
-                        MessageBoxHelper.Show(
-                            "No depots matched the selected language. Cannot proceed with download.",
-                            "Error",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Error);
-                        StatusMessage = "Installation cancelled - No matching depots";
-                        IsInstalling = false;
-                        return;
+                        _logger.Info("User selected 'All (Skip Filter)' - using all depots from Lua file");
+                        filteredDepotIds = parsedDepotKeys.Keys.ToList();
+                        StatusMessage = $"Using all {filteredDepotIds.Count} depots from Lua file...";
+                    }
+                    else
+                    {
+                        StatusMessage = $"Filtering depots for language: {languageDialog.SelectedLanguage}...";
+                        _logger.Info($"Step 6: Filtering depots for language '{languageDialog.SelectedLanguage}' using Python-style logic...");
+                        filteredDepotIds = depotFilterService.GetDepotsForLanguage(
+                            steamCmdData,
+                            parsedDepotKeys,
+                            languageDialog.SelectedLanguage,
+                            appId);
+
+                        if (filteredDepotIds.Count == 0)
+                        {
+                            _logger.Warning("No depots matched the selected language - falling back to all depots from Lua file");
+                            _notificationService.ShowWarning("Language filter returned no depots. Showing all available depots from the Lua file.");
+                            filteredDepotIds = parsedDepotKeys.Keys.ToList();
+                        }
                     }
 
-                    _logger.Info($"Filtered depot list contains {filteredDepotIds.Count} depots: {string.Join(", ", filteredDepotIds)}");
-                    StatusMessage = $"Found {filteredDepotIds.Count} depots for {languageDialog.SelectedLanguage}. Preparing depot selection...";
+                    _logger.Info($"Depot list contains {filteredDepotIds.Count} depots: {string.Join(", ", filteredDepotIds)}");
+                    StatusMessage = $"Found {filteredDepotIds.Count} depots. Preparing depot selection...";
 
                     // Parse depot names from lua content for friendly display
                     var luaParser = new LuaParser();
@@ -639,17 +661,35 @@ namespace SteamPP.ViewModels
                     message => StatusMessage = message,
                     selectedDepotIds);
 
-                if (settings.Mode == ToolMode.GreenLuma && depotKeys.Count > 0)
+                if (settings.Mode == ToolMode.GreenLuma)
                 {
-                    StatusMessage = $"Updating Config.VDF with {depotKeys.Count} depot keys...";
-                    var success = _fileInstallService.UpdateConfigVdfWithDepotKeys(depotKeys);
-                    if (!success)
+                    if (depotKeys.Count > 0)
                     {
-                        MessageBoxHelper.Show(
-                            "Failed to update config.vdf with depot keys. You may need to add them manually.",
-                            "Warning",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Warning);
+                        StatusMessage = $"Updating Config.VDF with {depotKeys.Count} depot keys...";
+                        var success = _fileInstallService.UpdateConfigVdfWithDepotKeys(depotKeys);
+                        if (!success)
+                        {
+                            MessageBoxHelper.Show(
+                                "Failed to update config.vdf with depot keys. You may need to add them manually.",
+                                "Warning",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                        }
+                    }
+
+                    StatusMessage = "Applying PICS tokens to appinfo.vdf...";
+                    try
+                    {
+                        var luaContentForTokens = _downloadService.ExtractLuaContentFromZip(filePath, appId);
+                        var tokensApplied = _fileInstallService.ApplyTokensFromLuaContent(luaContentForTokens);
+                        if (tokensApplied > 0)
+                        {
+                            _logger.Info($"Applied {tokensApplied} PICS tokens to appinfo.vdf");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error($"Failed to apply PICS tokens: {ex.Message}");
                     }
                 }
 
@@ -712,6 +752,27 @@ namespace SteamPP.ViewModels
                 _notificationService.ShowSuccess(installMessage, "Installation Complete");
 
                 StatusMessage = includeMainAppId ? $"{fileName} installed successfully" : $"{fileName} DLC installed (DLC only)";
+
+                // Store manifest info for future updates
+                try
+                {
+                    var steamAppList = await _steamApiService.GetAppListAsync();
+                    var gameName = _steamApiService.GetGameName(appId, steamAppList) ?? appId;
+                    var installPath = settings.UseDefaultInstallLocation
+                        ? _steamService.GetSteamPath() ?? ""
+                        : settings.SelectedLibraryFolder ?? "";
+                    var depotIdList = selectedDepotIds?.Select(d => uint.TryParse(d, out var id) ? id : 0).Where(d => d > 0).ToList();
+
+                    _manifestStorageService.StoreManifest(appId, gameName, 0, installPath, depotIdList);
+                    _notificationService.ShowNotification(
+                        "Manifest Saved",
+                        $"Manifest stored in: {_manifestStorageService.ManifestFolder}");
+                    _logger.Info($"Manifest info stored for {gameName} (AppId: {appId})");
+                }
+                catch (System.Exception ex)
+                {
+                    _logger.Error($"Failed to store manifest info: {ex.Message}");
+                }
 
                 // Notify library to add the game instantly (only if main AppId was included)
                 if (includeMainAppId)
