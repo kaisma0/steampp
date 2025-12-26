@@ -136,7 +136,7 @@ namespace SteamPP.Converters
         {
             if (value is Models.DownloadStatus status)
             {
-                return status == Models.DownloadStatus.Downloading ? Visibility.Visible : Visibility.Collapsed;
+                return (status == Models.DownloadStatus.Downloading || status == Models.DownloadStatus.Paused) ? Visibility.Visible : Visibility.Collapsed;
             }
             return Visibility.Collapsed;
         }

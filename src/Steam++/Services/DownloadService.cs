@@ -389,6 +389,32 @@ namespace SteamPP.Services
             App.Current.Dispatcher.Invoke(() => ActiveDownloads.Remove(item));
         }
 
+        public void TogglePause(DownloadItem item)
+        {
+            // Only support pause for DepotDownloader for now
+            if (item.IsDepotDownloaderMode)
+            {
+                if (item.Status == DownloadStatus.Downloading)
+                {
+                    App.Current.Dispatcher.Invoke(() =>
+                    {
+                        item.Status = DownloadStatus.Paused;
+                        item.StatusMessage = "Paused";
+                    });
+                    DepotDownloader.ContentDownloader.Pause();
+                }
+                else if (item.Status == DownloadStatus.Paused)
+                {
+                    App.Current.Dispatcher.Invoke(() =>
+                    {
+                        item.Status = DownloadStatus.Downloading;
+                        item.StatusMessage = "Resuming...";
+                    });
+                    DepotDownloader.ContentDownloader.Resume();
+                }
+            }
+        }
+
         public void ClearCompletedDownloads()
         {
             var completed = CompletedDownloads.ToList();

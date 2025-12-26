@@ -813,9 +813,9 @@ namespace SteamPP.ViewModels
         }
 
         [RelayCommand]
-        private void RemoveDownload(DownloadItem item)
+        private void TogglePause(DownloadItem item)
         {
-            _downloadService.RemoveDownload(item);
+            _downloadService.TogglePause(item);
         }
 
         [RelayCommand]

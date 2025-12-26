@@ -52,7 +52,28 @@ namespace DepotDownloader
 
         // Pause support
         private static bool _isPaused = false;
+        public static bool IsPaused => _isPaused;
         private static readonly ManualResetEventSlim _pauseEvent = new ManualResetEventSlim(true); // Initially not paused
+
+        public static void Pause()
+        {
+            if (!_isPaused)
+            {
+                _isPaused = true;
+                _pauseEvent.Reset();
+                LogMessage?.Invoke(null, "Download paused");
+            }
+        }
+
+        public static void Resume()
+        {
+            if (_isPaused)
+            {
+                _isPaused = false;
+                _pauseEvent.Set();
+                LogMessage?.Invoke(null, "Download resumed");
+            }
+        }
 
         private static Steam3Session? steam3;
         private static CDNClientPool? cdnPool;
@@ -402,11 +423,11 @@ namespace DepotDownloader
             }, cancellationToken);
         }
 
-        private static void CheckPauseState()
+        private static void CheckPauseState(CancellationToken token)
         {
             // Wait if paused - this will block until _pauseEvent is set (unpaused)
-            // Returns immediately if already set (not paused)
-            _pauseEvent.Wait();
+            // or the token is cancelled.
+            _pauseEvent.Wait(token);
         }
 
         private static void Log(string message)
@@ -1476,7 +1497,8 @@ namespace DepotDownloader
             CDNClientPool pool)
         {
             cts.Token.ThrowIfCancellationRequested();
-            CheckPauseState(); // Check if paused before downloading chunk
+            cts.Token.ThrowIfCancellationRequested();
+            CheckPauseState(cts.Token); // Check if paused before downloading chunk
 
             var depot = depotFilesData.depotDownloadInfo;
             if (depot == null) return;
@@ -1493,7 +1515,7 @@ namespace DepotDownloader
                 do
                 {
                     cts.Token.ThrowIfCancellationRequested();
-                    CheckPauseState(); // Check again before each retry
+                    CheckPauseState(cts.Token); // Check again before each retry
 
                     Server? connection = null;
 

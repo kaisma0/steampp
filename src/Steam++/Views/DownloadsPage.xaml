@@ -124,11 +124,20 @@
                                                 Padding="10,5"
                                                 Margin="0,0,10,0"
                                                 Visibility="{Binding Status, Converter={StaticResource DownloadStatusToVisibilityConverter}}"/>
-                                        <Button Content="Remove"
-                                                Style="{StaticResource SecondaryButtonStyle}"
-                                                Command="{Binding DataContext.RemoveDownloadCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        <Button Command="{Binding DataContext.TogglePauseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"
-                                                Padding="10,5"/>
+                                                Padding="10,5">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+                                                    <Setter Property="Content" Value="Pause"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Paused">
+                                                            <Setter Property="Content" Value="Resume"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
                                     </StackPanel>
                                 </Grid>
                             </Grid>

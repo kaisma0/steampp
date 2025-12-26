@@ -10,7 +10,8 @@ namespace SteamPP.Models
         Downloading,
         Completed,
         Failed,
-        Cancelled
+        Cancelled,
+        Paused
     }
 
     public class DownloadItem : INotifyPropertyChanged
