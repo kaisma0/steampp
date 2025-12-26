@@ -1,7 +1,8 @@
 <UserControl x:Class="SteamPP.Views.DownloadsPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:models="clr-namespace:SteamPP.Models">
+             xmlns:models="clr-namespace:SteamPP.Models"
+             xmlns:local="clr-namespace:SteamPP.Views">
     <Grid Margin="30">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -38,107 +39,119 @@
             <ItemsControl ItemsSource="{Binding ActiveDownloads}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource ModernCardStyle}"
-                                Margin="0,0,0,15">
+                        <Border CornerRadius="6" Margin="0,0,0,15" ClipToBounds="True" Height="120"
+                                Background="#1B2838">
                             <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="350"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
 
-                                <Grid Grid.Row="0">
-                                    <TextBlock Text="{Binding GameName}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <!-- Game Image on Left -->
+                                <Image Grid.Column="0" Source="{Binding HeaderImageUrl}"
+                                       Stretch="UniformToFill" HorizontalAlignment="Left"/>
 
-                                    <TextBlock Text="{Binding StatusMessage}"
-                                               FontSize="12"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               HorizontalAlignment="Right"/>
-                                </Grid>
+                                <!-- Gradient Overlay on Image (fades only at the right edge) -->
+                                <Border Grid.Column="0">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#001B2838" Offset="0.9"/>
+                                            <GradientStop Color="#FF1B2838" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                </Border>
 
-                                <ProgressBar Grid.Row="1"
-                                             Value="{Binding Progress}"
-                                             Maximum="100"
-                                             Height="8"
-                                             Margin="0,10,0,5"/>
+                                <!-- Bottom Progress Bar -->
+                                <ProgressBar Grid.ColumnSpan="2" VerticalAlignment="Bottom" Height="4"
+                                             Value="{Binding Progress}" Maximum="100"
+                                             BorderThickness="0" Background="Transparent"
+                                             Foreground="#4c92d5" IsHitTestVisible="False"/>
 
-                                <Grid Grid.Row="2">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
+                                <!-- Content overlay (spans both columns) -->
+                                <Grid Grid.ColumnSpan="2" Margin="15,12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Column="0"
-                                               FontSize="12"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               VerticalAlignment="Center">
-                                        <TextBlock.Text>
-                                            <MultiBinding StringFormat="{}{0} / {1}">
-                                                <Binding Path="DownloadedFormatted" Mode="OneWay"/>
-                                                <Binding Path="TotalFormatted" Mode="OneWay"/>
-                                            </MultiBinding>
-                                        </TextBlock.Text>
-                                    </TextBlock>
+                                    <!-- Top Row: Graph and Status -->
+                                    <Grid Grid.Row="0" VerticalAlignment="Bottom" Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto" MinWidth="260"/>
+                                        </Grid.ColumnDefinitions>
 
-                                    <!-- Speed Stats -->
-                                    <StackPanel Grid.Column="1" 
-                                                Orientation="Horizontal" 
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center">
-                                        <StackPanel Margin="0,0,25,0">
-                                            <TextBlock Text="{Binding NetworkSpeedFormatted}" 
-                                                       FontSize="14" FontWeight="Bold"
-                                                       Foreground="{DynamicResource AccentBrush}"/>
-                                            <TextBlock Text="CURRENT" FontSize="10" 
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                        <!-- Speed Graph -->
+                                        <local:SpeedGraph Grid.Column="0" SpeedHistory="{Binding SpeedHistory}" 
+                                                          Height="50" VerticalAlignment="Bottom" Margin="0,0,20,0"/>
+
+                                        <!-- Status Info -->
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+                                            <TextBlock Foreground="#CCCCCC" FontSize="11" HorizontalAlignment="Right" Margin="0,0,0,3">
+                                                <TextBlock.Text>
+                                                    <MultiBinding StringFormat="{}{0} / {1}">
+                                                        <Binding Path="DownloadedFormatted"/>
+                                                        <Binding Path="TotalFormatted"/>
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding StatusMessage}"
+                                                       FontSize="11" Foreground="#AAAAAA"
+                                                       HorizontalAlignment="Right"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Bottom Row: Name, Stats, Buttons -->
+                                    <Grid Grid.Row="1">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Game Name -->
+                                        <TextBlock Grid.Column="0" Text="{Binding GameName}"
+                                                   FontSize="18" FontWeight="Bold"
+                                                   Foreground="White" VerticalAlignment="Center"
+                                                   Margin="0,0,20,0"/>
+
+                                        <!-- Speed Stats (Centered) -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <StackPanel Margin="0,0,20,0">
+                                                <TextBlock Text="{Binding NetworkSpeedFormatted}" FontSize="13" FontWeight="SemiBold" Foreground="#4790D5"/>
+                                                <TextBlock Text="CURRENT" FontSize="9" Foreground="#888888"/>
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,20,0">
+                                                <TextBlock Text="{Binding PeakNetworkSpeedFormatted}" FontSize="13" FontWeight="SemiBold" Foreground="White"/>
+                                                <TextBlock Text="PEAK" FontSize="9" Foreground="#888888"/>
+                                            </StackPanel>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding DiskSpeedFormattedMatchesSteam}" FontSize="13" FontWeight="SemiBold" Foreground="#5AB360"/>
+                                                <TextBlock Text="DISK USAGE" FontSize="9" Foreground="#888888"/>
+                                            </StackPanel>
                                         </StackPanel>
 
-                                        <StackPanel Margin="0,0,25,0">
-                                            <TextBlock Text="{Binding PeakNetworkSpeedFormatted}" 
-                                                       FontSize="14" FontWeight="Bold"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                            <TextBlock Text="PEAK" FontSize="10" 
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                        <!-- Buttons -->
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Content="Cancel" Style="{StaticResource SecondaryButtonStyle}"
+                                                    Command="{Binding DataContext.CancelDownloadCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" Padding="12,5" Margin="0,0,8,0"
+                                                    Visibility="{Binding Status, Converter={StaticResource DownloadStatusToVisibilityConverter}}"/>
+                                            <Button Command="{Binding DataContext.TogglePauseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" Padding="12,5">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+                                                        <Setter Property="Content" Value="Pause"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Paused">
+                                                                <Setter Property="Content" Value="Resume"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
                                         </StackPanel>
-
-                                        <StackPanel>
-                                             <TextBlock Text="{Binding DiskSpeedFormattedMatchesSteam}" 
-                                                       FontSize="14" FontWeight="Bold"
-                                                       Foreground="{DynamicResource SuccessBrush}"/>
-                                            <TextBlock Text="DISK USAGE" FontSize="10" 
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                        </StackPanel>
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="2" 
-                                                Orientation="Horizontal"
-                                                HorizontalAlignment="Right">
-                                        <Button Content="Cancel"
-                                                Style="{StaticResource SecondaryButtonStyle}"
-                                                Command="{Binding DataContext.CancelDownloadCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}"
-                                                Padding="10,5"
-                                                Margin="0,0,10,0"
-                                                Visibility="{Binding Status, Converter={StaticResource DownloadStatusToVisibilityConverter}}"/>
-                                        <Button Command="{Binding DataContext.TogglePauseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}"
-                                                Padding="10,5">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
-                                                    <Setter Property="Content" Value="Pause"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Status}" Value="Paused">
-                                                            <Setter Property="Content" Value="Resume"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
-                                    </StackPanel>
+                                    </Grid>
                                 </Grid>
                             </Grid>
                         </Border>

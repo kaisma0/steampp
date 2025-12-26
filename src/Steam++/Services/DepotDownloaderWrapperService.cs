@@ -181,16 +181,12 @@ namespace SteamPP.Services
                 EventHandler<DepotDownloader.DownloadProgressEventArgs>? progressHandler = null;
                 progressHandler = (sender, e) =>
                 {
-                    // Calculate overall progress: (completed depots + current depot progress) / total depots
-                    double overallProgress = ((currentDepotIndex + (e.Progress / 100.0)) / totalDepots) * 100.0;
 
-                    // Clamp progress to 100% to prevent overflow when depot completes
-                    overallProgress = Math.Min(overallProgress, 100.0);
 
                     ProgressChanged?.Invoke(this, new DownloadProgressEventArgs
                     {
                         JobId = appId.ToString(),
-                        Progress = overallProgress,
+                        Progress = (double)e.Progress,
                         DownloadedBytes = (long)e.DownloadedBytes,
                         TotalBytes = (long)e.TotalBytes,
                         NetworkSpeed = e.NetworkSpeed,

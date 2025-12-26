@@ -796,10 +796,9 @@ namespace DepotDownloader
             public int totalFiles;
             public DateTime lastProgressReport = DateTime.MinValue;
             public ulong lastReportedSize = 0;
-            // Speed calculation
-            public ulong lastNetworkBytes = 0;
-            public ulong lastDiskBytes = 0;
-            public DateTime lastSpeedCheck = DateTime.MinValue;
+            // Sliding window for speed calculation (3-second)
+            public Queue<(DateTime Time, ulong NetworkBytes, ulong DiskBytes)> speedHistory = new();
+            public DateTime? downloadStartTime = null;
             public long currentNetworkSpeed = 0;
             public long currentDiskSpeed = 0;
         }
@@ -815,28 +814,33 @@ namespace DepotDownloader
                 if (!force && timeDiff < 0.5)
                     return;
 
-                if (timeDiff > 0)
+                // Track when download started for warm-up period
+                counter.downloadStartTime ??= now;
+                var secondsSinceStart = (now - counter.downloadStartTime.Value).TotalSeconds;
+
+                // Add current sample to history
+                counter.speedHistory.Enqueue((now, counter.depotBytesCompressed, counter.sizeDownloaded));
+
+                // Remove samples older than 3 seconds
+                while (counter.speedHistory.Count > 0 && (now - counter.speedHistory.Peek().Time).TotalSeconds > 3.0)
                 {
-                    // Calculate speeds (Bytes per second)
-                    var networkDiff = counter.depotBytesCompressed - counter.lastNetworkBytes;
-                    var diskDiff = counter.sizeDownloaded - counter.lastDiskBytes;
+                    counter.speedHistory.Dequeue();
+                }
 
-                    var rawNetworkSpeed = (long)(networkDiff / timeDiff);
-                    var rawDiskSpeed = (long)(diskDiff / timeDiff);
+                // Only calculate speed after 3-second warm-up period
+                if (secondsSinceStart >= 3.0 && counter.speedHistory.Count >= 2)
+                {
+                    var oldest = counter.speedHistory.Peek();
+                    var windowSeconds = (now - oldest.Time).TotalSeconds;
 
-                    // Smoothing using Exponential Moving Average (EMA)
-                    // Alpha determines the weight of the new value. 
-                    // 0.2 means 20% influence from new value, 80% from history.
-                    const double alpha = 0.2; 
+                    if (windowSeconds > 0.1)
+                    {
+                        var networkDiff = counter.depotBytesCompressed - oldest.NetworkBytes;
+                        var diskDiff = counter.sizeDownloaded - oldest.DiskBytes;
 
-                    counter.currentNetworkSpeed = (long)((rawNetworkSpeed * alpha) + (counter.currentNetworkSpeed * (1 - alpha)));
-                    counter.currentDiskSpeed = (long)((rawDiskSpeed * alpha) + (counter.currentDiskSpeed * (1 - alpha)));
-
-                    // Sanity check: cap unrealistic speeds (e.g. > 10 Gbps) which usually indicate a calculation glitch
-                    if (counter.currentNetworkSpeed > 1250000000) counter.currentNetworkSpeed = 1250000000;
-
-                    counter.lastNetworkBytes = counter.depotBytesCompressed;
-                    counter.lastDiskBytes = counter.sizeDownloaded;
+                        counter.currentNetworkSpeed = (long)(networkDiff / windowSeconds);
+                        counter.currentDiskSpeed = (long)(diskDiff / windowSeconds);
+                    }
                 }
 
                 counter.lastProgressReport = now;

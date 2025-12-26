@@ -784,7 +784,8 @@ namespace SteamPP.Services
                 StartTime = DateTime.Now,
                 StatusMessage = "Initializing Steam session...",
                 DestinationPath = gameDownloadPath,
-                IsDepotDownloaderMode = true // Mark as DepotDownloader to skip auto-install
+                IsDepotDownloaderMode = true,
+                HeaderImageUrl = $"https://cdn.cloudflare.steamstatic.com/steam/apps/{appId}/header.jpg"
             };
 
             var cancellationTokenSource = new CancellationTokenSource();
@@ -815,11 +816,11 @@ namespace SteamPP.Services
                         downloadItem.Progress = e.Progress;
                         downloadItem.DownloadedBytes = e.DownloadedBytes;
                         downloadItem.TotalBytes = e.TotalBytes;
-                        downloadItem.NetworkSpeed = e.NetworkSpeed; // Pass current speed
-                        downloadItem.DiskSpeed = e.DiskSpeed;       // Pass current speed
+                        downloadItem.NetworkSpeed = e.NetworkSpeed;
+                        downloadItem.DiskSpeed = e.DiskSpeed;
+                        downloadItem.RecordSpeedSample();
 
-                        var progressPercent = (int)(e.Progress * 100);
-                        downloadItem.StatusMessage = $"Downloading: {e.CurrentFile} ({progressPercent}% - {e.ProcessedFiles}/{e.TotalFiles} files)";
+                        downloadItem.StatusMessage = $"Downloading: {e.CurrentFile} ({e.Progress:F1}% - {e.ProcessedFiles}/{e.TotalFiles} files)";
                     });
                 };
 

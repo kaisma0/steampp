@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -16,14 +17,18 @@ namespace SteamPP.Models
 
     public class DownloadItem : INotifyPropertyChanged
     {
+        private const int MaxSpeedHistorySize = 60;
+
         private double _progress;
         private DownloadStatus _status;
         private string _statusMessage = string.Empty;
         private long _downloadedBytes;
         private long _totalBytes;
-        private long _networkSpeed; // Bytes/s
-        private long _diskSpeed; // Bytes/s
-        private long _peakNetworkSpeed; // Bytes/s
+        private long _networkSpeed;
+        private long _diskSpeed;
+        private long _peakNetworkSpeed;
+        private string _headerImageUrl = string.Empty;
+        private List<SpeedSample> _speedHistory = new();
 
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string AppId { get; set; } = string.Empty;
@@ -32,7 +37,19 @@ namespace SteamPP.Models
         public string DestinationPath { get; set; } = string.Empty;
         public DateTime StartTime { get; set; }
         public DateTime? EndTime { get; set; }
-        public bool IsDepotDownloaderMode { get; set; } = false; // If true, skip auto-install (files are downloaded directly, not as zip)
+        public bool IsDepotDownloaderMode { get; set; } = false;
+
+        public string HeaderImageUrl
+        {
+            get => _headerImageUrl;
+            set
+            {
+                _headerImageUrl = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public IReadOnlyList<SpeedSample> SpeedHistory => _speedHistory;
 
         public double Progress
         {
@@ -161,5 +178,16 @@ namespace SteamPP.Models
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+        public void RecordSpeedSample()
+        {
+            _speedHistory.Add(new SpeedSample(_networkSpeed, _diskSpeed));
+            if (_speedHistory.Count > MaxSpeedHistorySize)
+            {
+                _speedHistory.RemoveAt(0);
+            }
+            OnPropertyChanged(nameof(SpeedHistory));
+        }
     }
 }
+
