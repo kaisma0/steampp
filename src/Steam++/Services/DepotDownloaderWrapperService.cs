@@ -14,6 +14,8 @@ namespace SteamPP.Services
         public long DownloadedBytes { get; set; }
         public long TotalBytes { get; set; }
         public double Speed { get; set; }
+        public long NetworkSpeed { get; set; }
+        public long DiskSpeed { get; set; }
         public int ProcessedFiles { get; set; }
         public int TotalFiles { get; set; }
         public string CurrentFile { get; set; } = "";
@@ -191,6 +193,8 @@ namespace SteamPP.Services
                         Progress = overallProgress,
                         DownloadedBytes = (long)e.DownloadedBytes,
                         TotalBytes = (long)e.TotalBytes,
+                        NetworkSpeed = e.NetworkSpeed,
+                        DiskSpeed = e.DiskSpeed,
                         ProcessedFiles = e.ProcessedFiles,
                         TotalFiles = e.TotalFiles,
                         CurrentFile = e.CurrentFile ?? ""
@@ -272,6 +276,35 @@ namespace SteamPP.Services
             }
             catch (Exception ex)
             {
+                if (ex is OperationCanceledException || ex is TaskCanceledException)
+                {
+                    LogInfo("Download canceled. Cleaning up files...");
+                    
+                    try
+                    {
+                        // Wait briefly for file handles to be released
+                        await Task.Delay(500);
+
+                        if (System.IO.Directory.Exists(targetDirectory))
+                        {
+                            System.IO.Directory.Delete(targetDirectory, true);
+                            LogInfo("Cleaned up download directory.");
+                        }
+                    }
+                    catch (Exception cleanupEx)
+                    {
+                        LogInfo($"Warning: specific cleanup failed: {cleanupEx.Message}");
+                    }
+
+                    DownloadCompleted?.Invoke(this, new DownloadCompletedEventArgs
+                    {
+                        JobId = appId.ToString(),
+                        Success = false,
+                        Message = "Download canceled"
+                    });
+                    return false;
+                }
+
                 LogInfo($"Download failed: {ex.Message}");
                 _logger.Error($"DepotDownloader download error: {ex.Message}");
 

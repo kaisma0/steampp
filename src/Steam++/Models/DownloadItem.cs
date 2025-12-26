@@ -20,6 +20,9 @@ namespace SteamPP.Models
         private string _statusMessage = string.Empty;
         private long _downloadedBytes;
         private long _totalBytes;
+        private long _networkSpeed; // Bytes/s
+        private long _diskSpeed; // Bytes/s
+        private long _peakNetworkSpeed; // Bytes/s
 
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string AppId { get; set; } = string.Empty;
@@ -81,6 +84,59 @@ namespace SteamPP.Models
                 OnPropertyChanged(nameof(TotalFormatted));
             }
         }
+
+        public long NetworkSpeed
+        {
+            get => _networkSpeed;
+            set
+            {
+                _networkSpeed = value;
+                if (_networkSpeed > _peakNetworkSpeed)
+                {
+                    PeakNetworkSpeed = _networkSpeed;
+                }
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(NetworkSpeedFormatted));
+            }
+        }
+
+        public long PeakNetworkSpeed
+        {
+            get => _peakNetworkSpeed;
+            set
+            {
+                _peakNetworkSpeed = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(PeakNetworkSpeedFormatted));
+            }
+        }
+
+        public long DiskSpeed
+        {
+            get => _diskSpeed;
+            set
+            {
+                _diskSpeed = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DiskSpeedFormatted));
+                OnPropertyChanged(nameof(DiskSpeedFormattedMatchesSteam));
+            }
+        }
+
+        public string NetworkSpeedFormatted => FormatSpeed(NetworkSpeed);
+        public string PeakNetworkSpeedFormatted => FormatSpeed(PeakNetworkSpeed);
+        public string DiskSpeedFormatted => FormatSpeed(DiskSpeed); // Disk usage usually shown in MB/s, but user asked for Mbps? Assuming Mbps only for network. Re-reading request: "speed should be in Mbps". Implies network. Steam shows Disk in MB/s. I'll stick to Mbps for Network, MB/s for Disk to match Steam UI.
+
+        private string FormatSpeed(long bytesPerSecond)
+        {
+            // Network speed in Mbps
+            double mbps = (bytesPerSecond * 8.0) / 1000000.0;
+            return $"{mbps:0.0} Mbps";
+        }
+        
+        // Overload for disk speed which should technically be MB/s? User asked "speed should be in Mbps", vague if applied to disk.
+        // Official Steam uses MB/s for disk. I will use MB/s for Disk to avoid confusion, and Mbps for Network.
+        public string DiskSpeedFormattedMatchesSteam => FormatBytes(DiskSpeed) + "/s";
 
         public string DownloadedFormatted => FormatBytes(DownloadedBytes);
         public string TotalFormatted => FormatBytes(TotalBytes);

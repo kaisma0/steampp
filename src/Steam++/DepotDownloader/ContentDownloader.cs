@@ -28,6 +28,8 @@ namespace DepotDownloader
         public string? CurrentFile { get; set; }
         public int ProcessedFiles { get; set; }
         public int TotalFiles { get; set; }
+        public long NetworkSpeed { get; set; } // Bytes per second
+        public long DiskSpeed { get; set; } // Bytes per second
     }
 
     public static class ContentDownloader
@@ -773,6 +775,12 @@ namespace DepotDownloader
             public int totalFiles;
             public DateTime lastProgressReport = DateTime.MinValue;
             public ulong lastReportedSize = 0;
+            // Speed calculation
+            public ulong lastNetworkBytes = 0;
+            public ulong lastDiskBytes = 0;
+            public DateTime lastSpeedCheck = DateTime.MinValue;
+            public long currentNetworkSpeed = 0;
+            public long currentDiskSpeed = 0;
         }
 
         private static void ReportProgress(uint depotId, DepotDownloadCounter counter, string? currentFile = null, bool force = false)
@@ -781,8 +789,34 @@ namespace DepotDownloader
             {
                 // Throttle progress updates to every 500ms, unless forced (file completion)
                 var now = DateTime.Now;
-                if (!force && (now - counter.lastProgressReport).TotalMilliseconds < 500)
+                var timeDiff = (now - counter.lastProgressReport).TotalSeconds;
+
+                if (!force && timeDiff < 0.5)
                     return;
+
+                if (timeDiff > 0)
+                {
+                    // Calculate speeds (Bytes per second)
+                    var networkDiff = counter.depotBytesCompressed - counter.lastNetworkBytes;
+                    var diskDiff = counter.sizeDownloaded - counter.lastDiskBytes;
+
+                    var rawNetworkSpeed = (long)(networkDiff / timeDiff);
+                    var rawDiskSpeed = (long)(diskDiff / timeDiff);
+
+                    // Smoothing using Exponential Moving Average (EMA)
+                    // Alpha determines the weight of the new value. 
+                    // 0.2 means 20% influence from new value, 80% from history.
+                    const double alpha = 0.2; 
+
+                    counter.currentNetworkSpeed = (long)((rawNetworkSpeed * alpha) + (counter.currentNetworkSpeed * (1 - alpha)));
+                    counter.currentDiskSpeed = (long)((rawDiskSpeed * alpha) + (counter.currentDiskSpeed * (1 - alpha)));
+
+                    // Sanity check: cap unrealistic speeds (e.g. > 10 Gbps) which usually indicate a calculation glitch
+                    if (counter.currentNetworkSpeed > 1250000000) counter.currentNetworkSpeed = 1250000000;
+
+                    counter.lastNetworkBytes = counter.depotBytesCompressed;
+                    counter.lastDiskBytes = counter.sizeDownloaded;
+                }
 
                 counter.lastProgressReport = now;
                 counter.lastReportedSize = counter.sizeDownloaded;
@@ -795,7 +829,9 @@ namespace DepotDownloader
                     TotalBytes = counter.completeDownloadSize,
                     CurrentFile = currentFile,
                     ProcessedFiles = counter.processedFiles,
-                    TotalFiles = counter.totalFiles
+                    TotalFiles = counter.totalFiles,
+                    NetworkSpeed = counter.currentNetworkSpeed,
+                    DiskSpeed = counter.currentDiskSpeed
                 });
             }
             catch
@@ -1141,20 +1177,38 @@ namespace DepotDownloader
                 CancellationToken = cts.Token
             };
 
-            await Parallel.ForEachAsync(files, parallelOptions, async (file, cancellationToken) =>
+            var allFileStreams = new ConcurrentBag<FileStreamData>();
+            
+            try
             {
-                await Task.Yield();
-                DownloadSteam3AsyncDepotFile(cts, downloadCounter, depotFilesData, file, networkChunkQueue);
-            });
+                await Parallel.ForEachAsync(files, parallelOptions, async (file, cancellationToken) =>
+                {
+                    await Task.Yield();
+                    DownloadSteam3AsyncDepotFile(cts, downloadCounter, depotFilesData, file, networkChunkQueue, allFileStreams);
+                });
 
-            await Parallel.ForEachAsync(networkChunkQueue, parallelOptions, async (q, cancellationToken) =>
+                await Parallel.ForEachAsync(networkChunkQueue, parallelOptions, async (q, cancellationToken) =>
+                {
+                    await DownloadSteam3AsyncDepotFileChunk(
+                        cts, downloadCounter, depotFilesData,
+                        q.fileData, q.fileStreamData, q.chunk,
+                        session, pool
+                    );
+                });
+            }
+            finally
             {
-                await DownloadSteam3AsyncDepotFileChunk(
-                    cts, downloadCounter, depotFilesData,
-                    q.fileData, q.fileStreamData, q.chunk,
-                    session, pool
-                );
-            });
+                // Ensure all file streams are disposed, even if canceled or errored
+                foreach (var fsData in allFileStreams)
+                {
+                    try
+                    {
+                        fsData.fileStream?.Dispose();
+                        fsData.fileLock?.Dispose();
+                    }
+                    catch { /* Best effort cleanup */ }
+                }
+            }
 
             // Check for deleted files if updating the depot.
             if (depotFilesData.previousManifest != null && depotFilesData.previousManifest.Files != null)
@@ -1200,7 +1254,8 @@ namespace DepotDownloader
             GlobalDownloadCounter downloadCounter,
             DepotFilesData depotFilesData,
             DepotManifest.FileData file,
-            ConcurrentQueue<(FileStreamData, DepotManifest.FileData, DepotManifest.ChunkData)> networkChunkQueue)
+            ConcurrentQueue<(FileStreamData, DepotManifest.FileData, DepotManifest.ChunkData)> networkChunkQueue,
+            ConcurrentBag<FileStreamData> allFileStreams)
         {
             cts.Token.ThrowIfCancellationRequested();
 
@@ -1406,6 +1461,8 @@ namespace DepotDownloader
             {
                 networkChunkQueue.Enqueue((fileStreamData, file, chunk));
             }
+            
+            allFileStreams.Add(fileStreamData);
         }
 
         private static async Task DownloadSteam3AsyncDepotFileChunk(

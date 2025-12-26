@@ -789,6 +789,9 @@ namespace SteamPP.Services
                         downloadItem.Progress = e.Progress;
                         downloadItem.DownloadedBytes = e.DownloadedBytes;
                         downloadItem.TotalBytes = e.TotalBytes;
+                        downloadItem.NetworkSpeed = e.NetworkSpeed; // Pass current speed
+                        downloadItem.DiskSpeed = e.DiskSpeed;       // Pass current speed
+
                         var progressPercent = (int)(e.Progress * 100);
                         downloadItem.StatusMessage = $"Downloading: {e.CurrentFile} ({progressPercent}% - {e.ProcessedFiles}/{e.TotalFiles} files)";
                     });
