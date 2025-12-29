@@ -269,32 +269,7 @@ namespace SteamPP.ViewModels
         {
             try
             {
-                _notificationService.ShowNotification("Downloading Update", "Downloading the latest version...", NotificationType.Info);
-
-                var progress = new Progress<double>(percent =>
-                {
-                    _notificationService.ShowNotification("Downloading Update", $"Progress: {percent:F1}%", NotificationType.Info);
-                });
-
-                var updatePath = await _updateService.DownloadUpdateAsync(updateInfo, progress);
-
-                if (!string.IsNullOrEmpty(updatePath))
-                {
-                    var result = MessageBoxHelper.Show(
-                        "Update downloaded successfully! The application will now restart to install the update.",
-                        "Update Ready",
-                        MessageBoxButton.OKCancel,
-                        MessageBoxImage.Information);
-
-                    if (result == MessageBoxResult.OK)
-                    {
-                        _updateService.InstallUpdate(updatePath);
-                    }
-                }
-                else
-                {
-                    _notificationService.ShowError("Failed to download update. Please try again or download manually from GitHub.");
-                }
+                await _updateService.DownloadAndInstallWithDialogAsync(updateInfo);
             }
             catch (Exception ex)
             {

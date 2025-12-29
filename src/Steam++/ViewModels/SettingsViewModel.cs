@@ -908,38 +908,25 @@ namespace SteamPP.ViewModels
 
                 if (hasUpdate && updateInfo != null)
                 {
-                    var result = MessageBoxHelper.Show(
+                    var confirmResult = MessageBoxHelper.Show(
                         $"A new version ({updateInfo.TagName}) is available!\n\nWould you like to download and install it now?\n\nCurrent version: {_updateService.GetCurrentVersion()}",
                         "Update Available",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Information,
                         forceShow: true);
 
-                    if (result == MessageBoxResult.Yes)
+                    if (confirmResult == MessageBoxResult.Yes)
                     {
                         StatusMessage = "Downloading update...";
-                        // Show ONE notification - no progress updates to avoid spam on slow connections
-                        _notificationService.ShowNotification("Downloading Update", "Downloading the latest version... This may take a few minutes.", NotificationType.Info);
 
-                        // Download without progress reporting to avoid notification spam
-                        var updatePath = await _updateService.DownloadUpdateAsync(updateInfo, null);
+                        var result = await _updateService.DownloadAndInstallWithDialogAsync(updateInfo);
 
-                        if (!string.IsNullOrEmpty(updatePath))
+                        StatusMessage = result switch
                         {
-                            MessageBoxHelper.Show(
-                                "Update downloaded successfully!\n\nThe app will now restart to install the update.",
-                                "Update Ready",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Information,
-                                forceShow: true);
-
-                            _updateService.InstallUpdate(updatePath);
-                        }
-                        else
-                        {
-                            StatusMessage = "Failed to download update";
-                            _notificationService.ShowError("Failed to download update. Please try again later.", "Update Failed");
-                        }
+                            UpdateService.UpdateResult.Cancelled => "Update cancelled",
+                            UpdateService.UpdateResult.Failed => "Failed to download update",
+                            _ => StatusMessage
+                        };
                     }
                     else
                     {

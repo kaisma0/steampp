@@ -8,6 +8,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SteamPP.Services
@@ -48,13 +49,15 @@ namespace SteamPP.Services
     public class UpdateService
     {
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly NotificationService _notificationService;
         private const string GitHubApiUrl = "https://api.github.com/repos/{owner}/{repo}/releases/latest";
         private const string Owner = "kaisma0";
         private const string Repo = "steampp";
 
-        public UpdateService(IHttpClientFactory httpClientFactory)
+        public UpdateService(IHttpClientFactory httpClientFactory, NotificationService notificationService)
         {
             _httpClientFactory = httpClientFactory;
+            _notificationService = notificationService;
         }
 
         private HttpClient CreateClient()
@@ -112,7 +115,7 @@ namespace SteamPP.Services
             }
         }
 
-        public async Task<string?> DownloadUpdateAsync(UpdateInfo updateInfo, IProgress<double>? progress = null)
+        public async Task<string?> DownloadUpdateAsync(UpdateInfo updateInfo, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -128,7 +131,7 @@ namespace SteamPP.Services
 
                     if (zipAsset != null)
                     {
-                        return await DownloadUpdateFromZipAsync(zipAsset, progress);
+                        return await DownloadUpdateFromZipAsync(zipAsset, progress, cancellationToken);
                     }
 
                     return null;
@@ -138,7 +141,7 @@ namespace SteamPP.Services
 
                 // Download EXE directly
                 var client = CreateClient();
-                using (var response = await client.GetAsync(exeAsset.BrowserDownloadUrl, HttpCompletionOption.ResponseHeadersRead))
+                using (var response = await client.GetAsync(exeAsset.BrowserDownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
                 {
                     response.EnsureSuccessStatusCode();
 
@@ -146,14 +149,15 @@ namespace SteamPP.Services
                     var downloadedBytes = 0L;
 
                     using var fileStream = new FileStream(tempExePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                    using var contentStream = await response.Content.ReadAsStreamAsync();
+                    using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
                     var buffer = new byte[8192];
                     int bytesRead;
 
-                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
                     {
-                        await fileStream.WriteAsync(buffer, 0, bytesRead);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken);
                         downloadedBytes += bytesRead;
 
                         if (totalBytes > 0 && progress != null)
@@ -166,6 +170,10 @@ namespace SteamPP.Services
 
                 return tempExePath;
             }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
             catch
             {
                 return null;
@@ -173,7 +181,7 @@ namespace SteamPP.Services
         }
 
         // Fallback method for backward compatibility with old zip releases
-        private async Task<string?> DownloadUpdateFromZipAsync(UpdateAsset zipAsset, IProgress<double>? progress = null)
+        private async Task<string?> DownloadUpdateFromZipAsync(UpdateAsset zipAsset, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -182,7 +190,7 @@ namespace SteamPP.Services
 
                 // Download ZIP
                 var client = CreateClient();
-                using (var response = await client.GetAsync(zipAsset.BrowserDownloadUrl, HttpCompletionOption.ResponseHeadersRead))
+                using (var response = await client.GetAsync(zipAsset.BrowserDownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
                 {
                     response.EnsureSuccessStatusCode();
 
@@ -190,14 +198,15 @@ namespace SteamPP.Services
                     var downloadedBytes = 0L;
 
                     using var fileStream = new FileStream(tempZipPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                    using var contentStream = await response.Content.ReadAsStreamAsync();
+                    using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
                     var buffer = new byte[8192];
                     int bytesRead;
 
-                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
                     {
-                        await fileStream.WriteAsync(buffer, 0, bytesRead);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken);
                         downloadedBytes += bytesRead;
 
                         if (totalBytes > 0 && progress != null)
@@ -239,6 +248,10 @@ namespace SteamPP.Services
 
                 return finalExePath;
             }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
             catch
             {
                 return null;
@@ -279,6 +292,77 @@ del ""{batchPath}""
             catch
             {
                 // Failed to install update
+            }
+        }
+
+        public enum UpdateResult
+        {
+            Success,
+            Cancelled,
+            Failed
+        }
+
+        public async Task<UpdateResult> DownloadAndInstallWithDialogAsync(UpdateInfo updateInfo, System.Windows.Window? owner = null)
+        {
+            var progressDialog = new Views.Dialogs.UpdateProgressDialog();
+            progressDialog.Owner = owner ?? System.Windows.Application.Current.MainWindow;
+            progressDialog.SetVersion(updateInfo.TagName);
+
+            var cts = new CancellationTokenSource();
+            progressDialog.SetCancellationTokenSource(cts);
+
+            var progress = new Progress<double>(percent =>
+            {
+                progressDialog.UpdateProgress(percent);
+            });
+
+            progressDialog.Show();
+
+            try
+            {
+                var updatePath = await DownloadUpdateAsync(updateInfo, progress, cts.Token);
+
+                if (!string.IsNullOrEmpty(updatePath))
+                {
+                    progressDialog.SetCompleted();
+                    progressDialog.Close();
+
+                    var result = MessageBoxHelper.Show(
+                        "Update downloaded successfully!\n\nThe app will now restart to install the update.",
+                        "Update Ready",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information,
+                        forceShow: true);
+
+                    InstallUpdate(updatePath);
+                    return UpdateResult.Success;
+                }
+                else if (progressDialog.WasCancelled)
+                {
+                    progressDialog.Close();
+                    _notificationService.ShowNotification("Update Cancelled", "The update download was cancelled.", NotificationType.Info);
+                    return UpdateResult.Cancelled;
+                }
+                else
+                {
+                    progressDialog.SetError("Download failed");
+                    await Task.Delay(1500);
+                    progressDialog.Close();
+                    _notificationService.ShowError("Failed to download update. Please try again later.", "Update Failed");
+                    return UpdateResult.Failed;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                progressDialog.Close();
+                _notificationService.ShowNotification("Update Cancelled", "The update download was cancelled.", NotificationType.Info);
+                return UpdateResult.Cancelled;
+            }
+            catch
+            {
+                progressDialog.Close();
+                _notificationService.ShowError("An error occurred while updating. Please try again later.", "Update Error");
+                return UpdateResult.Failed;
             }
         }
 

@@ -35,6 +35,7 @@ namespace SteamPP.ViewModels
         private readonly ImageCacheService _imageCacheService;
         private readonly ProfileService _profileService;
         private readonly SteamKitAppInfoService _steamKitService;
+        private readonly ManifestStorageService _manifestStorageService;
 
         private List<LibraryItem> _allItems = new();
 
@@ -130,7 +131,8 @@ namespace SteamPP.ViewModels
             RecentGamesService recentGamesService,
             ProfileService profileService,
             SteamKitAppInfoService steamKitService,
-            LuaFileManager luaFileManager)
+            LuaFileManager luaFileManager,
+            ManifestStorageService manifestStorageService)
         {
             _fileInstallService = fileInstallService;
             _steamService = steamService;
@@ -146,6 +148,7 @@ namespace SteamPP.ViewModels
             _profileService = profileService;
             _steamKitService = steamKitService;
             _luaFileManager = luaFileManager;
+            _manifestStorageService = manifestStorageService;
 
             _archiveExtractor = new ArchiveExtractionService();
             _imageCacheService = new ImageCacheService(logger);
@@ -1129,6 +1132,7 @@ namespace SteamPP.ViewModels
                     {
                         _allItems.Remove(item);
                         _dbService.DeleteLibraryItem(item.AppId);
+                        _manifestStorageService.RemoveManifest(item.AppId);
                         ApplyFilters();
 
                         // Update statistics
@@ -1243,6 +1247,7 @@ namespace SteamPP.ViewModels
                         {
                             _allItems.Remove(item);
                             _dbService.DeleteLibraryItem(item.AppId);
+                            _manifestStorageService.RemoveManifest(item.AppId);
                             successCount++;
                         }
                     }

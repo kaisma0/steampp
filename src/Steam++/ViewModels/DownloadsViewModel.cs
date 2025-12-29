@@ -87,11 +87,10 @@ namespace SteamPP.ViewModels
                     return;
                 }
 
-                // Check if auto-install is enabled
+                // Always run install flow after API download completes (if setting enabled)
                 var settings = _settingsService.LoadSettings();
                 if (settings.AutoInstallAfterDownload && !string.IsNullOrEmpty(downloadItem.DestinationPath) && File.Exists(downloadItem.DestinationPath))
                 {
-                    // Auto-install the downloaded file
                     await InstallFile(downloadItem.DestinationPath);
                 }
             });

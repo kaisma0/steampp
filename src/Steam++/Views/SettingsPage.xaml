@@ -579,16 +579,6 @@
                                             Command="{Binding BrowseDownloadsPathCommand}"
                                             Padding="20,8"/>
                                 </Grid>
-
-                                <CheckBox Content="Auto-install after download completes"
-                                          IsChecked="{Binding AutoInstallAfterDownload}"
-                                          Foreground="{DynamicResource TextPrimaryBrush}"
-                                          ToolTip="Automatically install games after they finish downloading"/>
-
-                                <CheckBox Content="Delete ZIP file after installation"
-                                          IsChecked="{Binding DeleteZipAfterInstall}"
-                                          Foreground="{DynamicResource TextPrimaryBrush}"
-                                          ToolTip="Automatically delete the downloaded ZIP file after successful installation"/>
                             </StackPanel>
                         </Border>
 
@@ -767,7 +757,19 @@
                                 <CheckBox Content="Always show tray icon (even when window is open)"
                                           IsChecked="{Binding AlwaysShowTrayIcon}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                          Margin="0,0,0,10"
                                           ToolTip="Keep the system tray icon visible at all times (disabled by default)"/>
+
+                                <CheckBox Content="Auto-install after download completes"
+                                          IsChecked="{Binding AutoInstallAfterDownload}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          Margin="0,0,0,10"
+                                          ToolTip="Automatically install games after they finish downloading"/>
+
+                                <CheckBox Content="Delete ZIP file after installation"
+                                          IsChecked="{Binding DeleteZipAfterInstall}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          ToolTip="Automatically delete the downloaded ZIP file after successful installation"/>
                             </StackPanel>
                         </Border>
 

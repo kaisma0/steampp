@@ -80,7 +80,7 @@ namespace SteamPP.Services
                 {
                     var appDataPath = System.IO.Path.Combine(
                         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                        "SteamPP",
+                        "Steam++",
                         "DepotDownloader"
                     );
 

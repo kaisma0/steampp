@@ -229,10 +229,6 @@ namespace SteamPP.Services
                     }
                 } // Streams and response are now closed
 
-                // Extract files to Steam directories after file is fully written and closed
-                App.Current.Dispatcher.Invoke(() => downloadItem.StatusMessage = "Extracting files...");
-                bool isGreenLumaMode = selectedDepotIds != null && selectedDepotIds.Count > 0;
-                await ExtractToSteamDirectoriesAsync(filePath, steamPath, manifest.AppId, selectedDepotIds, isGreenLumaMode);
 
                 App.Current.Dispatcher.Invoke(() =>
                 {
@@ -289,90 +285,6 @@ namespace SteamPP.Services
             finally
             {
                 _downloadCancellations.Remove(downloadItem.Id);
-            }
-        }
-
-        public async Task ExtractToSteamDirectoriesAsync(string zipFilePath, string steamPath, string appId, List<string>? selectedDepotIds = null, bool isGreenLumaMode = false)
-        {
-            if (string.IsNullOrEmpty(steamPath) || !Directory.Exists(steamPath))
-            {
-                throw new Exception("Invalid Steam path. Please configure Steam path in settings.");
-            }
-
-            var tempExtractPath = Path.Combine(Path.GetTempPath(), $"morrenus_extract_{appId}");
-
-            try
-            {
-                // Extract to temp directory first
-                if (Directory.Exists(tempExtractPath))
-                {
-                    Directory.Delete(tempExtractPath, true);
-                }
-                Directory.CreateDirectory(tempExtractPath);
-
-                await Task.Run(() => ZipFile.ExtractToDirectory(zipFilePath, tempExtractPath));
-
-                // Steam directories
-                var luaPath = Path.Combine(steamPath, "config", "stplug-in");
-                var manifestPath = Path.Combine(steamPath, "depotcache");
-
-                // Ensure directories exist
-                Directory.CreateDirectory(luaPath);
-                Directory.CreateDirectory(manifestPath);
-
-                // Only install Lua file in SteamTools mode, NOT in GreenLuma mode
-                if (!isGreenLumaMode)
-                {
-                    // Extract the single Lua file from root: {appId}.lua
-                    var luaFileName = $"{appId}.lua";
-                    var luaFilePath = Path.Combine(tempExtractPath, luaFileName);
-
-                    if (File.Exists(luaFilePath))
-                    {
-                        var destPath = Path.Combine(luaPath, luaFileName);
-                        File.Copy(luaFilePath, destPath, true);
-                    }
-                    else
-                    {
-                        throw new Exception($"Lua file not found in ZIP: {luaFileName}");
-                    }
-                }
-
-                // Extract manifest files to {steamdir}/depotcache
-                var manifestFiles = Directory.GetFiles(tempExtractPath, "*.manifest", SearchOption.AllDirectories);
-                foreach (var manifestFile in manifestFiles)
-                {
-                    var fileName = Path.GetFileName(manifestFile);
-
-                    // If GreenLuma mode (selectedDepotIds provided), only extract manifests for selected depots
-                    if (selectedDepotIds != null && selectedDepotIds.Count > 0)
-                    {
-                        // Check if filename contains any of the selected depot IDs
-                        var shouldExtract = selectedDepotIds.Any(depotId => fileName.Contains(depotId));
-                        if (!shouldExtract)
-                        {
-                            continue; // Skip this manifest
-                        }
-                    }
-
-                    var destPath = Path.Combine(manifestPath, fileName);
-                    File.Copy(manifestFile, destPath, true);
-                }
-            }
-            finally
-            {
-                // Clean up temp directory
-                if (Directory.Exists(tempExtractPath))
-                {
-                    try
-                    {
-                        Directory.Delete(tempExtractPath, true);
-                    }
-                    catch
-                    {
-                        // Ignore cleanup errors
-                    }
-                }
             }
         }
 

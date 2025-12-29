@@ -240,32 +240,11 @@ namespace SteamPP
             try
             {
                 var updateService = _host.Services.GetRequiredService<UpdateService>();
-                var notificationService = _host.Services.GetRequiredService<NotificationService>();
 
-                // Show ONE notification at the start - no progress updates to avoid spam on slow connections
-                notificationService.ShowNotification("Downloading Update", "Downloading the latest version... This may take a few minutes.", NotificationType.Info);
-
-                // Download without progress reporting to avoid notification spam
-                var updatePath = await updateService.DownloadUpdateAsync(updateInfo, null);
-
-                if (!string.IsNullOrEmpty(updatePath))
+                await Dispatcher.InvokeAsync(async () =>
                 {
-                    await Dispatcher.InvokeAsync(() =>
-                    {
-                        MessageBoxHelper.Show(
-                            "Update downloaded successfully!\n\nThe app will now restart to install the update.",
-                            "Update Ready",
-                            System.Windows.MessageBoxButton.OK,
-                            System.Windows.MessageBoxImage.Information,
-                            forceShow: true);
-
-                        updateService.InstallUpdate(updatePath);
-                    });
-                }
-                else
-                {
-                    notificationService.ShowError("Failed to download update. Please try again later.", "Update Failed");
-                }
+                    await updateService.DownloadAndInstallWithDialogAsync(updateInfo, _mainWindow);
+                });
             }
             catch
             {
