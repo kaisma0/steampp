@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace SteamPP.ViewModels
@@ -20,9 +19,8 @@ namespace SteamPP.ViewModels
         private readonly DepotDownloadService _depotDownloadService;
         private readonly SteamService _steamService;
         private readonly DownloadService _downloadService;
-        private readonly SteamApiService _steamApiService;
         private readonly LibraryRefreshService _libraryRefreshService;
-        private readonly ProfileService _profileService;
+        private readonly ManifestStorageService _manifestStorageService;
         private readonly LoggerService _logger;
 
         [ObservableProperty]
@@ -41,13 +39,7 @@ namespace SteamPP.ViewModels
         private string _statusMessage = "Drop a .zip, .lua, or .manifest file here to install";
 
         [ObservableProperty]
-        private bool _isGreenLumaMode;
-
-        [ObservableProperty]
-        private List<GreenLumaProfile> _profiles = new();
-
-        [ObservableProperty]
-        private GreenLumaProfile? _selectedProfile;
+        private List<string> _selectedFiles = new();
 
         public LuaInstallerViewModel(
             FileInstallService fileInstallService,
@@ -56,9 +48,8 @@ namespace SteamPP.ViewModels
             DepotDownloadService depotDownloadService,
             SteamService steamService,
             DownloadService downloadService,
-            SteamApiService steamApiService,
             LibraryRefreshService libraryRefreshService,
-            ProfileService profileService,
+            ManifestStorageService manifestStorageService,
             LoggerService logger)
         {
             _fileInstallService = fileInstallService;
@@ -67,32 +58,11 @@ namespace SteamPP.ViewModels
             _depotDownloadService = depotDownloadService;
             _steamService = steamService;
             _downloadService = downloadService;
-            _steamApiService = steamApiService;
             _libraryRefreshService = libraryRefreshService;
-            _profileService = profileService;
+            _manifestStorageService = manifestStorageService;
             _logger = logger;
-
-            var settings = _settingsService.LoadSettings();
-            IsGreenLumaMode = settings.Mode == ToolMode.GreenLuma;
-            LoadProfiles();
         }
 
-        public void RefreshMode()
-        {
-            var settings = _settingsService.LoadSettings();
-            IsGreenLumaMode = settings.Mode == ToolMode.GreenLuma;
-            LoadProfiles();
-        }
-
-        private void LoadProfiles()
-        {
-            Profiles = _profileService.GetAllProfiles();
-            var active = _profileService.GetActiveProfile();
-            SelectedProfile = Profiles.FirstOrDefault(p => p.Id == active?.Id) ?? Profiles.FirstOrDefault();
-        }
-
-        [ObservableProperty]
-        private List<string> _selectedFiles = new();
 
         [RelayCommand]
         private void ProcessDroppedFiles(string[] files)
@@ -240,137 +210,10 @@ namespace SteamPP.ViewModels
             {
                 if (SelectedFilePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Extract appId from filename (e.g., 224060.zip -> 224060)
+                    // Extract appId from filename
                     var appId = Path.GetFileNameWithoutExtension(SelectedFilePath);
 
-                    // Validate appId for GreenLuma mode
-                    if (settings.Mode == ToolMode.GreenLuma)
-                    {
-                        // Check if app already exists in AppList
-                        string? customPath = null;
-                        if (settings.GreenLumaSubMode == GreenLumaMode.StealthAnyFolder)
-                        {
-                            var injectorDir = Path.GetDirectoryName(settings.DLLInjectorPath);
-                            if (!string.IsNullOrEmpty(injectorDir))
-                            {
-                                customPath = Path.Combine(injectorDir, "AppList");
-                            }
-                        }
-
-                        if (_fileInstallService.IsAppIdInAppList(appId, customPath))
-                        {
-                            _notificationService.ShowError($"App ID {appId} already exists in AppList folder. Cannot install duplicate game.");
-                            StatusMessage = "Installation cancelled - Duplicate App ID";
-                            IsInstalling = false;
-                            return;
-                        }
-
-                        // Validate app exists in Steam's official app list
-                        StatusMessage = "Validating App ID...";
-                        var steamAppList = await _steamApiService.GetAppListAsync();
-                        var gameName = _steamApiService.GetGameName(appId, steamAppList);
-
-                        if (gameName == "Unknown Game")
-                        {
-                            _notificationService.ShowError($"App ID {appId} not found in Steam's app list. Cannot install invalid game.");
-                            StatusMessage = "Installation cancelled - Invalid App ID";
-                            IsInstalling = false;
-                            return;
-                        }
-                    }
-
-                    List<string>? selectedDepotIds = null;
-                    List<DepotInfo>? selectedDepotInfos = null;
-
-                    // Follow GreenLuma flow if mode is enabled
-                    if (settings.Mode == ToolMode.GreenLuma)
-                    {
-                        // Check current AppList count before proceeding
-                        string? customPath = null;
-                        if (settings.GreenLumaSubMode == GreenLumaMode.StealthAnyFolder)
-                        {
-                            var injectorDir = Path.GetDirectoryName(settings.DLLInjectorPath);
-                            if (!string.IsNullOrEmpty(injectorDir))
-                            {
-                                customPath = Path.Combine(injectorDir, "AppList");
-                            }
-                        }
-
-                        var steamPath = _steamService.GetSteamPath();
-                        if (customPath == null && steamPath == null)
-                        {
-                            _notificationService.ShowError("Could not find Steam installation path.");
-                            IsInstalling = false;
-                            return;
-                        }
-
-                        var appListPath = customPath ?? Path.Combine(steamPath!, "AppList");
-                        var currentCount = Directory.Exists(appListPath) ? Directory.GetFiles(appListPath, "*.txt").Length : 0;
-
-                        if (currentCount >= 128)
-                        {
-                            _notificationService.ShowError($"AppList is full ({currentCount}/128 files). Cannot add more games. Please uninstall some games first.");
-                            StatusMessage = "Installation cancelled - AppList full";
-                            IsInstalling = false;
-                            return;
-                        }
-
-                        // Extract lua content from the zip
-                        StatusMessage = $"Analyzing depot information...";
-                        var luaContent = _downloadService.ExtractLuaContentFromZip(SelectedFilePath, appId);
-
-                        // Get combined depot info (lua names/sizes + steamcmd languages)
-                        var depots = await _depotDownloadService.GetCombinedDepotInfo(appId, luaContent);
-
-                        if (depots.Count > 0)
-                        {
-                            // Calculate max depots that can be selected
-                            var maxDepotsAllowed = 128 - currentCount - 1; // -1 for main app ID
-
-                            if (maxDepotsAllowed <= 0)
-                            {
-                                _notificationService.ShowError($"AppList is nearly full ({currentCount}/128 files). Cannot add more games. Please uninstall some games first.");
-                                StatusMessage = "Installation cancelled - AppList full";
-                                IsInstalling = false;
-                                return;
-                            }
-
-                            // Show warning if space is limited
-                            if (maxDepotsAllowed < depots.Count)
-                            {
-                                _notificationService.ShowWarning($"AppList has limited space. You can only select up to {maxDepotsAllowed} depots (currently {currentCount}/128 files).");
-                            }
-                            // Show depot selection dialog
-                            var depotDialog = new DepotSelectionDialog(depots);
-                            var result = depotDialog.ShowDialog();
-
-                            if (result == true && depotDialog.SelectedDepotIds.Count > 0)
-                            {
-                                selectedDepotIds = depotDialog.SelectedDepotIds;
-                                selectedDepotInfos = depots.Where(d => selectedDepotIds.Contains(d.DepotId)).ToList();
-                            }
-                            else
-                            {
-                                StatusMessage = "Installation cancelled";
-                                IsInstalling = false;
-                                return;
-                            }
-
-                            // Generate AppList with main appid + selected depot IDs
-                            StatusMessage = $"Generating AppList for selected depots...";
-                            var appListIds = new List<string> { appId };
-                            appListIds.AddRange(selectedDepotIds);
-
-                            // Reuse customPath from earlier check
-                            _fileInstallService.GenerateAppList(appListIds, customPath);
-
-                            // Generate ACF file for the game
-                            StatusMessage = $"Generating ACF file...";
-                            string? libraryFolder = settings.UseDefaultInstallLocation ? null : settings.SelectedLibraryFolder;
-                            _fileInstallService.GenerateACF(appId, appId, appId, libraryFolder);
-                        }
-                    }
-                    else if (settings.Mode == ToolMode.DepotDownloader)
+                    if (settings.Mode == ToolMode.DepotDownloader)
                     {
                         // DepotDownloader flow: extract depot keys, filter by language, and start download in Downloads tab
                         StatusMessage = "Extracting depot information from lua file...";
@@ -572,84 +415,22 @@ namespace SteamPP.ViewModels
                     }
 
                     // Install ZIP (contains .lua and .manifest files)
-                    var depotKeys = await _fileInstallService.InstallFromZipAsync(
-                        SelectedFilePath,
-                        settings.Mode == ToolMode.GreenLuma,
-                        message =>
-                        {
-                            StatusMessage = message;
-                        },
-                        selectedDepotIds);
+                    await _fileInstallService.InstallFromZipAsync(SelectedFilePath, message => StatusMessage = message);
+
+                    // Store manifest info for update tracking
+                    var luaContentForStorage = _downloadService.ExtractLuaContentFromZip(SelectedFilePath, appId);
+                    var luaParserForStorage = new LuaParser();
+                    var manifestId = luaParserForStorage.GetPrimaryManifestId(luaContentForStorage, appId);
+                    var manifestIds = luaParserForStorage.ParseManifestIds(luaContentForStorage);
+                    var depotIdList = manifestIds.Keys.Select(k => uint.TryParse(k, out var id) ? id : 0).Where(id => id > 0).ToList();
+                    var installPath = _steamService.GetStPluginPath() ?? "";
+                    _manifestStorageService.StoreManifest(appId, appId, manifestId, installPath, depotIdList);
 
                     // Auto-enable updates if configured (SteamTools mode only)
                     _fileInstallService.TryAutoEnableUpdates(appId);
 
-                    // If GreenLuma mode, update Config.VDF with depot keys
-                    if (settings.Mode == ToolMode.GreenLuma)
-                    {
-                        StatusMessage = $"Extracted {depotKeys.Count} depot keys from package";
-
-                        if (depotKeys.Count > 0)
-                        {
-                            StatusMessage = $"Updating Config.VDF with {depotKeys.Count} depot keys...";
-
-                            var success = _fileInstallService.UpdateConfigVdfWithDepotKeys(depotKeys);
-                            if (success)
-                            {
-                                StatusMessage = $"Successfully added {depotKeys.Count} depot keys to config.vdf";
-                            }
-                            else
-                            {
-                                _notificationService.ShowWarning("Failed to update config.vdf with depot keys. You may need to add them manually.");
-                            }
-                        }
-                        else
-                        {
-                            _notificationService.ShowWarning("No depot keys found in the package. Config.vdf will not be updated.");
-                        }
-                    }
-
                     // Notify library that game was installed
-                    _libraryRefreshService.NotifyGameInstalled(appId, settings.Mode == ToolMode.GreenLuma);
-
-                    // Add to selected profile if GreenLuma mode
-                    if (settings.Mode == ToolMode.GreenLuma && SelectedProfile != null)
-                    {
-                        var steamAppList = await _steamApiService.GetAppListAsync();
-                        var gameName = _steamApiService.GetGameName(appId, steamAppList);
-
-                        var allDepots = selectedDepotInfos ?? new List<DepotInfo>();
-                        var baseDepots = allDepots.Where(d => string.IsNullOrEmpty(d.DlcAppId)).ToList();
-                        var dlcDepots = allDepots.Where(d => !string.IsNullOrEmpty(d.DlcAppId)).GroupBy(d => d.DlcAppId).ToList();
-
-                        var profileGame = new ProfileGame
-                        {
-                            AppId = appId,
-                            Name = gameName,
-                            Depots = baseDepots.Select(d => new ProfileDepot
-                            {
-                                DepotId = d.DepotId,
-                                Name = d.Name,
-                                ManifestId = GetManifestIdForDepot(d.DepotId),
-                                DecryptionKey = depotKeys.TryGetValue(d.DepotId, out var key) ? key : string.Empty
-                            }).ToList(),
-                            DLCs = dlcDepots.Select(g => new ProfileDLC
-                            {
-                                AppId = g.Key!,
-                                Name = g.First().DlcName ?? g.Key!,
-                                Depots = g.Select(d => new ProfileDepot
-                                {
-                                    DepotId = d.DepotId,
-                                    Name = d.Name,
-                                    ManifestId = GetManifestIdForDepot(d.DepotId),
-                                    DecryptionKey = depotKeys.TryGetValue(d.DepotId, out var dk) ? dk : string.Empty
-                                }).ToList()
-                            }).ToList()
-                        };
-
-                        _profileService.AddGameToProfile(SelectedProfile.Id, profileGame);
-                        _logger.Info($"Added game {appId} to profile {SelectedProfile.Name} with {profileGame.Depots.Count} depots and {profileGame.DLCs.Count} DLCs");
-                    }
+                    _libraryRefreshService.NotifyGameInstalled(appId);
                 }
                 else if (SelectedFilePath.EndsWith(".lua", StringComparison.OrdinalIgnoreCase))
                 {
@@ -658,7 +439,8 @@ namespace SteamPP.ViewModels
 
                     // Extract appId from filename and notify library
                     var appId = Path.GetFileNameWithoutExtension(SelectedFilePath);
-                    _libraryRefreshService.NotifyGameInstalled(appId, settings.Mode == ToolMode.GreenLuma);
+                    _libraryRefreshService.NotifyGameInstalled(appId);
+
 
                     // Auto-enable updates if configured (SteamTools mode only)
                     _fileInstallService.TryAutoEnableUpdates(appId);
@@ -721,10 +503,26 @@ namespace SteamPP.ViewModels
                         if (file.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                         {
                             var appId = Path.GetFileNameWithoutExtension(file);
-                            await _fileInstallService.InstallFromZipAsync(file, false, msg => StatusMessage = msg);
+                            await _fileInstallService.InstallFromZipAsync(file, msg => StatusMessage = msg);
                             installedAppIds.Add(appId);
                             successCount++;
                             _fileInstallService.TryAutoEnableUpdates(appId);
+
+                            // Store manifest info
+                            try
+                            {
+                                var luaContentForStorage = _downloadService.ExtractLuaContentFromZip(file, appId);
+                                var luaParserForStorage = new LuaParser();
+                                var manifestId = luaParserForStorage.GetPrimaryManifestId(luaContentForStorage, appId);
+                                var manifestIds = luaParserForStorage.ParseManifestIds(luaContentForStorage);
+                                var depotIdList = manifestIds.Keys.Select(k => uint.TryParse(k, out var id) ? id : 0).Where(id => id > 0).ToList();
+                                var installPath = _steamService.GetStPluginPath() ?? "";
+                                _manifestStorageService.StoreManifest(appId, appId, manifestId, installPath, depotIdList);
+                            }
+                            catch (Exception msEx)
+                            {
+                                _logger.Error($"Failed to store manifest for {appId}: {msEx.Message}");
+                            }
                         }
                         else if (file.EndsWith(".lua", StringComparison.OrdinalIgnoreCase))
                         {
@@ -749,7 +547,7 @@ namespace SteamPP.ViewModels
 
                 foreach (var appId in installedAppIds.Distinct())
                 {
-                    _libraryRefreshService.NotifyGameInstalled(appId, false);
+                    _libraryRefreshService.NotifyGameInstalled(appId);
                 }
 
                 if (failCount == 0)
@@ -789,31 +587,6 @@ namespace SteamPP.ViewModels
             StatusMessage = "Drop a .zip, .lua, or .manifest file here to install";
         }
 
-        private string GetManifestIdForDepot(string depotId)
-        {
-            try
-            {
-                var steamPath = _steamService.GetSteamPath();
-                if (steamPath == null) return "0";
 
-                var depotCachePath = Path.Combine(steamPath, "depotcache");
-
-                if (Directory.Exists(depotCachePath))
-                {
-                    var manifestFiles = Directory.GetFiles(depotCachePath, $"{depotId}_*.manifest");
-                    if (manifestFiles.Length > 0)
-                    {
-                        var fileName = Path.GetFileNameWithoutExtension(manifestFiles[0]);
-                        var parts = fileName.Split('_');
-                        if (parts.Length == 2)
-                        {
-                            return parts[1];
-                        }
-                    }
-                }
-            }
-            catch { }
-            return string.Empty;
-        }
     }
 }

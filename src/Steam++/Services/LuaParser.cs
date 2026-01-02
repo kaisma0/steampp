@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace SteamPP.Services
@@ -186,6 +187,46 @@ namespace SteamPP.Services
 
             var content = File.ReadAllText(luaFilePath);
             return ParseDepotsFromLua(content);
+        }
+
+        public Dictionary<string, ulong> ParseManifestIds(string luaContent)
+        {
+            var manifestIds = new Dictionary<string, ulong>();
+            var lines = luaContent.Split('\n');
+
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+
+                if (trimmedLine.StartsWith("--"))
+                    continue;
+
+                var match = Regex.Match(trimmedLine, @"setManifestid\s*\(\s*(\d+)\s*,\s*""(\d+)""");
+                if (match.Success)
+                {
+                    var depotId = match.Groups[1].Value;
+                    if (ulong.TryParse(match.Groups[2].Value, out var manifestId))
+                    {
+                        manifestIds[depotId] = manifestId;
+                    }
+                }
+            }
+
+            return manifestIds;
+        }
+
+        public ulong GetPrimaryManifestId(string luaContent, string appId)
+        {
+            var manifestIds = ParseManifestIds(luaContent);
+
+            if (manifestIds.Count == 0)
+                return 0;
+
+            var mainDepotId = (uint.Parse(appId) + 1).ToString();
+            if (manifestIds.TryGetValue(mainDepotId, out var mainManifestId))
+                return mainManifestId;
+
+            return manifestIds.Values.Max();
         }
     }
 }

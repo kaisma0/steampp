@@ -22,7 +22,6 @@ namespace SteamPP.ViewModels
         private readonly CacheService _cacheService;
         private readonly NotificationService _notificationService;
         private readonly LuaInstallerViewModel _luaInstallerViewModel;
-        private readonly SteamLibraryService _steamLibraryService;
         private readonly ThemeService _themeService;
         private readonly LoggerService _logger;
         private readonly UpdateService _updateService;
@@ -115,37 +114,7 @@ namespace SteamPP.ViewModels
         private bool _isSteamToolsMode;
 
         [ObservableProperty]
-        private bool _isGreenLumaMode;
-
-        [ObservableProperty]
         private bool _isDepotDownloaderMode;
-
-        [ObservableProperty]
-        private bool _isGreenLumaNormalMode;
-
-        [ObservableProperty]
-        private bool _isGreenLumaStealthAnyFolderMode;
-
-        [ObservableProperty]
-        private bool _isGreenLumaStealthUser32Mode;
-
-        [ObservableProperty]
-        private string _appListPath = string.Empty;
-
-        [ObservableProperty]
-        private string _dllInjectorPath = string.Empty;
-
-        [ObservableProperty]
-        private bool _useDefaultInstallLocation;
-
-        [ObservableProperty]
-        private ObservableCollection<string> _libraryFolders = new();
-
-        [ObservableProperty]
-        private string _selectedLibraryFolder = string.Empty;
-
-        [ObservableProperty]
-        private bool _isAdvancedNormalMode;
 
         [ObservableProperty]
         private string _selectedThemeName = "Default";
@@ -177,8 +146,6 @@ namespace SteamPP.ViewModels
 
         public string CurrentVersion => _updateService.GetCurrentVersion();
 
-        public bool ShowAdvancedNormalModeSettings => IsGreenLumaNormalMode && IsAdvancedNormalMode;
-
         // Mark as unsaved when properties change
         partial void OnSteamPathChanged(string value) => MarkAsUnsaved();
         partial void OnApiKeyChanged(string value) => MarkAsUnsaved();
@@ -204,9 +171,6 @@ namespace SteamPP.ViewModels
         partial void OnWindowLeftChanged(double? value) => MarkAsUnsaved();
         partial void OnWindowTopChanged(double? value) => MarkAsUnsaved();
         partial void OnSelectedThemeNameChanged(string value) => MarkAsUnsaved();
-        partial void OnUseDefaultInstallLocationChanged(bool value) => MarkAsUnsaved();
-        partial void OnSelectedLibraryFolderChanged(string value) => MarkAsUnsaved();
-        partial void OnDllInjectorPathChanged(string value) => MarkAsUnsaved();
         partial void OnSteamUsernameChanged(string value) => MarkAsUnsaved();
         partial void OnVerifyFilesAfterDownloadChanged(bool value) => MarkAsUnsaved();
         partial void OnMaxConcurrentDownloadsChanged(int value) => MarkAsUnsaved();
@@ -225,20 +189,8 @@ namespace SteamPP.ViewModels
         {
             if (value)
             {
-                IsGreenLumaMode = false;
                 IsDepotDownloaderMode = false;
                 Settings.Mode = ToolMode.SteamTools;
-            }
-            MarkAsUnsaved();
-        }
-
-        partial void OnIsGreenLumaModeChanged(bool value)
-        {
-            if (value)
-            {
-                IsSteamToolsMode = false;
-                IsDepotDownloaderMode = false;
-                Settings.Mode = ToolMode.GreenLuma;
             }
             MarkAsUnsaved();
         }
@@ -248,62 +200,7 @@ namespace SteamPP.ViewModels
             if (value)
             {
                 IsSteamToolsMode = false;
-                IsGreenLumaMode = false;
                 Settings.Mode = ToolMode.DepotDownloader;
-            }
-            MarkAsUnsaved();
-        }
-
-        partial void OnIsGreenLumaNormalModeChanged(bool value)
-        {
-            if (value)
-            {
-                IsGreenLumaStealthAnyFolderMode = false;
-                IsGreenLumaStealthUser32Mode = false;
-                Settings.GreenLumaSubMode = GreenLumaMode.Normal;
-
-                // Auto-set DLLInjector path to {steampath}/DLLInjector.exe (unless advanced mode is enabled)
-                if (!IsAdvancedNormalMode && !string.IsNullOrEmpty(Settings.SteamPath))
-                {
-                    DllInjectorPath = Path.Combine(Settings.SteamPath, "DLLInjector.exe");
-                }
-            }
-            OnPropertyChanged(nameof(ShowAdvancedNormalModeSettings));
-            MarkAsUnsaved();
-        }
-
-        partial void OnIsAdvancedNormalModeChanged(bool value)
-        {
-            if (!value && IsGreenLumaNormalMode)
-            {
-                // When unchecking advanced mode, reset to default path
-                if (!string.IsNullOrEmpty(Settings.SteamPath))
-                {
-                    DllInjectorPath = Path.Combine(Settings.SteamPath, "DLLInjector.exe");
-                }
-            }
-            OnPropertyChanged(nameof(ShowAdvancedNormalModeSettings));
-            MarkAsUnsaved();
-        }
-
-        partial void OnIsGreenLumaStealthAnyFolderModeChanged(bool value)
-        {
-            if (value)
-            {
-                IsGreenLumaNormalMode = false;
-                IsGreenLumaStealthUser32Mode = false;
-                Settings.GreenLumaSubMode = GreenLumaMode.StealthAnyFolder;
-            }
-            MarkAsUnsaved();
-        }
-
-        partial void OnIsGreenLumaStealthUser32ModeChanged(bool value)
-        {
-            if (value)
-            {
-                IsGreenLumaNormalMode = false;
-                IsGreenLumaStealthAnyFolderMode = false;
-                Settings.GreenLumaSubMode = GreenLumaMode.StealthUser32;
             }
             MarkAsUnsaved();
         }
@@ -316,7 +213,6 @@ namespace SteamPP.ViewModels
             CacheService cacheService,
             NotificationService notificationService,
             LuaInstallerViewModel luaInstallerViewModel,
-            SteamLibraryService steamLibraryService,
             ThemeService themeService,
             LoggerService logger,
             UpdateService updateService)
@@ -328,7 +224,6 @@ namespace SteamPP.ViewModels
             _cacheService = cacheService;
             _notificationService = notificationService;
             _luaInstallerViewModel = luaInstallerViewModel;
-            _steamLibraryService = steamLibraryService;
             _themeService = themeService;
             _logger = logger;
             _updateService = updateService;
@@ -386,64 +281,13 @@ namespace SteamPP.ViewModels
             WindowLeft = Settings.WindowLeft;
             WindowTop = Settings.WindowTop;
             ApiKeyHistory = new ObservableCollection<string>(Settings.ApiKeyHistory);
-            AppListPath = Settings.AppListPath;
-            UseDefaultInstallLocation = Settings.UseDefaultInstallLocation;
-            SelectedLibraryFolder = Settings.SelectedLibraryFolder;
-
-            // Load library folders
-            var folders = _steamLibraryService.GetLibraryFolders();
-            LibraryFolders = new ObservableCollection<string>(folders);
-
-            // Set default if none selected
-            if (string.IsNullOrEmpty(SelectedLibraryFolder) && LibraryFolders.Any())
-            {
-                SelectedLibraryFolder = LibraryFolders.First();
-            }
 
             // Set mode radio buttons
             IsSteamToolsMode = Settings.Mode == ToolMode.SteamTools;
-            IsGreenLumaMode = Settings.Mode == ToolMode.GreenLuma;
             IsDepotDownloaderMode = Settings.Mode == ToolMode.DepotDownloader;
-
-            // Set GreenLuma sub-mode radio buttons
-            IsGreenLumaNormalMode = Settings.GreenLumaSubMode == GreenLumaMode.Normal;
-            IsGreenLumaStealthAnyFolderMode = Settings.GreenLumaSubMode == GreenLumaMode.StealthAnyFolder;
-            IsGreenLumaStealthUser32Mode = Settings.GreenLumaSubMode == GreenLumaMode.StealthUser32;
 
             // Set theme
             SelectedThemeName = Settings.Theme.ToString();
-
-            // Auto-set DLLInjector path based on mode
-            if (Settings.GreenLumaSubMode == GreenLumaMode.Normal)
-            {
-                // Normal mode: Always use {SteamPath}/DLLInjector.exe
-                if (!string.IsNullOrEmpty(Settings.SteamPath))
-                {
-                    DllInjectorPath = Path.Combine(Settings.SteamPath, "DLLInjector.exe");
-                    Settings.DLLInjectorPath = DllInjectorPath;
-                }
-            }
-            else if (Settings.GreenLumaSubMode == GreenLumaMode.StealthAnyFolder)
-            {
-                // Stealth Any Folder: Use saved path
-                DllInjectorPath = Settings.DLLInjectorPath;
-
-                // Auto-set AppListPath to {DLLInjectorPath directory}/AppList
-                if (!string.IsNullOrEmpty(DllInjectorPath))
-                {
-                    var injectorDir = Path.GetDirectoryName(DllInjectorPath);
-                    if (!string.IsNullOrEmpty(injectorDir))
-                    {
-                        AppListPath = Path.Combine(injectorDir, "AppList");
-                        Settings.AppListPath = AppListPath;
-                    }
-                }
-            }
-            else
-            {
-                // Stealth User32: No custom paths needed
-                DllInjectorPath = Settings.DLLInjectorPath;
-            }
 
             // Load DepotDownloader settings
             DepotDownloaderOutputPath = Settings.DepotDownloaderOutputPath;
@@ -493,10 +337,6 @@ namespace SteamPP.ViewModels
             Settings.RememberWindowPosition = RememberWindowPosition;
             Settings.WindowLeft = WindowLeft;
             Settings.WindowTop = WindowTop;
-            Settings.AppListPath = AppListPath;
-            Settings.DLLInjectorPath = DllInjectorPath;
-            Settings.UseDefaultInstallLocation = UseDefaultInstallLocation;
-            Settings.SelectedLibraryFolder = SelectedLibraryFolder;
 
             // Parse and save theme
             if (Enum.TryParse<AppTheme>(SelectedThemeName, out var theme))
@@ -522,8 +362,7 @@ namespace SteamPP.ViewModels
                 // Apply theme
                 _themeService.ApplyTheme(Settings.Theme);
 
-                // Refresh mode on Installer page
-                _luaInstallerViewModel.RefreshMode();
+
 
                 HasUnsavedChanges = false; // Clear unsaved changes flag after successful save
                 StatusMessage = "Settings saved successfully!";
@@ -553,14 +392,6 @@ namespace SteamPP.ViewModels
                 {
                     SteamPath = path;
                     StatusMessage = "Steam path updated";
-
-                    // Refresh library folders
-                    var folders = _steamLibraryService.GetLibraryFolders();
-                    LibraryFolders = new ObservableCollection<string>(folders);
-                    if (LibraryFolders.Any())
-                    {
-                        SelectedLibraryFolder = LibraryFolders.First();
-                    }
                 }
                 else
                 {
@@ -582,50 +413,6 @@ namespace SteamPP.ViewModels
                 DownloadsPath = dialog.FolderName;
                 Directory.CreateDirectory(DownloadsPath);
                 StatusMessage = "Downloads path updated";
-            }
-        }
-
-        [RelayCommand]
-        private void BrowseAppListPath()
-        {
-            var dialog = new OpenFolderDialog
-            {
-                Title = "Select AppList Folder"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                AppListPath = dialog.FolderName;
-                Directory.CreateDirectory(AppListPath);
-                StatusMessage = "AppList path updated";
-            }
-        }
-
-        [RelayCommand]
-        private void BrowseDLLInjectorPath()
-        {
-            var dialog = new OpenFileDialog
-            {
-                Title = "Select DLLInjector.exe",
-                Filter = "DLLInjector|DLLInjector.exe|Executable Files|*.exe|All Files|*.*",
-                CheckFileExists = true
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                DllInjectorPath = dialog.FileName;
-
-                // Auto-set AppListPath to {DLLInjectorPath directory}/AppList for StealthAnyFolder mode
-                if (Settings.GreenLumaSubMode == GreenLumaMode.StealthAnyFolder)
-                {
-                    var injectorDir = Path.GetDirectoryName(DllInjectorPath);
-                    if (!string.IsNullOrEmpty(injectorDir))
-                    {
-                        AppListPath = Path.Combine(injectorDir, "AppList");
-                    }
-                }
-
-                StatusMessage = "DLLInjector path updated";
             }
         }
 
@@ -699,14 +486,6 @@ namespace SteamPP.ViewModels
                 SteamPath = path;
                 StatusMessage = "Steam detected successfully";
                 _notificationService.ShowSuccess($"Steam found at: {path}");
-
-                // Refresh library folders
-                var folders = _steamLibraryService.GetLibraryFolders();
-                LibraryFolders = new ObservableCollection<string>(folders);
-                if (LibraryFolders.Any())
-                {
-                    SelectedLibraryFolder = LibraryFolders.First();
-                }
             }
             else
             {

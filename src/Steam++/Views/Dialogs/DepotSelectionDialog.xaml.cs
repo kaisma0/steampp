@@ -107,17 +107,6 @@ namespace SteamPP.Views.Dialogs
                 return;
             }
 
-            var totalCount = SelectedDepotIds.Count + (IncludeMainAppId ? 1 : 0);
-            if (totalCount > 128)
-            {
-                MessageBoxHelper.Show(
-                    $"You have selected {totalCount} items, which exceeds GreenLuma's limit of 128. Please deselect some to continue.",
-                    "GreenLuma Limit Exceeded",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-                return;
-            }
-
             DialogResult = true;
             Close();
         }

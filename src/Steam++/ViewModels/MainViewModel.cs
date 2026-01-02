@@ -144,7 +144,7 @@ namespace SteamPP.ViewModels
 
             CurrentPage = GetOrCreateView("Installer", () => new LuaInstallerPage { DataContext = LuaInstallerViewModel });
             CurrentPageName = "Installer";
-            LuaInstallerViewModel.RefreshMode();
+
         }
 
         [RelayCommand]

@@ -33,7 +33,6 @@ namespace SteamPP.ViewModels
         private readonly LibraryRefreshService _refreshService;
         private readonly RecentGamesService _recentGamesService;
         private readonly ImageCacheService _imageCacheService;
-        private readonly ProfileService _profileService;
         private readonly SteamKitAppInfoService _steamKitService;
         private readonly ManifestStorageService _manifestStorageService;
 
@@ -64,9 +63,6 @@ namespace SteamPP.ViewModels
         private int _totalSteamGames;
 
         [ObservableProperty]
-        private int _totalGreenLuma;
-
-        [ObservableProperty]
         private long _totalSize;
 
         [ObservableProperty]
@@ -77,12 +73,6 @@ namespace SteamPP.ViewModels
 
         [ObservableProperty]
         private bool _isSelectMode;
-
-        [ObservableProperty]
-        private bool _isSteamToolsMode;
-
-        [ObservableProperty]
-        private bool _isGreenLumaMode;
 
         [ObservableProperty]
         private ObservableCollection<string> _filterOptions = new();
@@ -106,15 +96,6 @@ namespace SteamPP.ViewModels
         [ObservableProperty]
         private bool _canGoNext;
 
-        [ObservableProperty]
-        private ObservableCollection<GreenLumaProfile> _profiles = new();
-
-        [ObservableProperty]
-        private GreenLumaProfile? _activeProfile;
-
-        [ObservableProperty]
-        private bool _hasUnappliedChanges;
-
         public List<string> SortOptions { get; } = new() { "Name", "Size", "Install Date", "Last Updated" };
 
         public LibraryViewModel(
@@ -129,7 +110,6 @@ namespace SteamPP.ViewModels
             LibraryDatabaseService dbService,
             LibraryRefreshService refreshService,
             RecentGamesService recentGamesService,
-            ProfileService profileService,
             SteamKitAppInfoService steamKitService,
             LuaFileManager luaFileManager,
             ManifestStorageService manifestStorageService)
@@ -145,7 +125,6 @@ namespace SteamPP.ViewModels
             _dbService = dbService;
             _refreshService = refreshService;
             _recentGamesService = recentGamesService;
-            _profileService = profileService;
             _steamKitService = steamKitService;
             _luaFileManager = luaFileManager;
             _manifestStorageService = manifestStorageService;
@@ -166,7 +145,6 @@ namespace SteamPP.ViewModels
             }
 
             _refreshService.GameInstalled += OnGameInstalled;
-            _refreshService.GreenLumaGameInstalled += OnGreenLumaGameInstalled;
         }
 
         [RelayCommand]
@@ -181,11 +159,6 @@ namespace SteamPP.ViewModels
         private async void OnGameInstalled(object? sender, GameInstalledEventArgs e)
         {
             await AddGameToLibraryAsync(e.AppId);
-        }
-
-        private async void OnGreenLumaGameInstalled(object? sender, GameInstalledEventArgs e)
-        {
-            await AddGreenLumaGameToLibraryAsync(e.AppId);
         }
 
         partial void OnSearchQueryChanged(string value)
@@ -227,29 +200,19 @@ namespace SteamPP.ViewModels
 
         private void UpdateVisibilityFilters()
         {
-            ShowLua = SelectedFilter is "All" or "Lua Only" or "GreenLuma Only";
+            ShowLua = SelectedFilter is "All" or "Lua Only";
             ShowSteamGames = SelectedFilter is "All" or "Steam Games Only";
         }
 
         public async Task LoadFromCache()
         {
             var settings = _settingsService.LoadSettings();
-            IsSteamToolsMode = settings.Mode == ToolMode.SteamTools;
-            IsGreenLumaMode = settings.Mode == ToolMode.GreenLuma;
 
-            LoadProfiles();
 
             var previousFilter = SelectedFilter;
             FilterOptions.Clear();
             FilterOptions.Add("All");
-            if (IsGreenLumaMode)
-            {
-                FilterOptions.Add("GreenLuma Only");
-            }
-            else
-            {
-                FilterOptions.Add("Lua Only");
-            }
+            FilterOptions.Add("Lua Only");
             FilterOptions.Add("Steam Games Only");
 
             // Restore previous filter if it exists in the new options, otherwise default
@@ -265,16 +228,6 @@ namespace SteamPP.ViewModels
             // Load from database cache (any age)
             var cachedItems = _dbService.GetAllLibraryItems();
 
-            // Filter cached items based on mode - don't show Lua games in GreenLuma mode and vice versa
-            if (IsGreenLumaMode)
-            {
-                cachedItems = cachedItems.Where(i => i.ItemType != LibraryItemType.Lua).ToList();
-            }
-            else if (IsSteamToolsMode)
-            {
-                cachedItems = cachedItems.Where(i => i.ItemType != LibraryItemType.GreenLuma).ToList();
-            }
-
             if (cachedItems.Count > 0)
             {
                 _allItems = cachedItems;
@@ -282,7 +235,6 @@ namespace SteamPP.ViewModels
                 // Update statistics
                 TotalLua = _allItems.Count(i => i.ItemType == LibraryItemType.Lua);
                 TotalSteamGames = _allItems.Count(i => i.ItemType == LibraryItemType.SteamGame);
-                TotalGreenLuma = _allItems.Count(i => i.ItemType == LibraryItemType.GreenLuma);
                 TotalSize = _allItems.Sum(i => i.SizeBytes);
 
                 ApplyFilters();
@@ -365,22 +317,12 @@ namespace SteamPP.ViewModels
             StatusMessage = "Loading library...";
 
             var settings = _settingsService.LoadSettings();
-            IsSteamToolsMode = settings.Mode == ToolMode.SteamTools;
-            IsGreenLumaMode = settings.Mode == ToolMode.GreenLuma;
 
-            LoadProfiles();
 
             var previousFilter = SelectedFilter;
             FilterOptions.Clear();
             FilterOptions.Add("All");
-            if (IsGreenLumaMode)
-            {
-                FilterOptions.Add("GreenLuma Only");
-            }
-            else
-            {
-                FilterOptions.Add("Lua Only");
-            }
+            FilterOptions.Add("Lua Only");
             FilterOptions.Add("Steam Games Only");
 
             // Restore previous filter if it exists in the new options, otherwise default
@@ -401,16 +343,6 @@ namespace SteamPP.ViewModels
                     _logger.Info("Loading library from database cache (fast path)");
                     var cachedItems = _dbService.GetAllLibraryItems();
 
-                    // Filter cached items based on mode
-                    if (IsGreenLumaMode)
-                    {
-                        cachedItems = cachedItems.Where(i => i.ItemType != LibraryItemType.Lua).ToList();
-                    }
-                    else if (IsSteamToolsMode)
-                    {
-                        cachedItems = cachedItems.Where(i => i.ItemType != LibraryItemType.GreenLuma).ToList();
-                    }
-
                     // Only use cache if it has items
                     if (cachedItems.Count > 0)
                     {
@@ -419,7 +351,6 @@ namespace SteamPP.ViewModels
                         // Update statistics
                         TotalLua = _allItems.Count(i => i.ItemType == LibraryItemType.Lua);
                         TotalSteamGames = _allItems.Count(i => i.ItemType == LibraryItemType.SteamGame);
-                        TotalGreenLuma = _allItems.Count(i => i.ItemType == LibraryItemType.GreenLuma);
                         TotalSize = _allItems.Sum(i => i.SizeBytes);
 
                         ApplyFilters();
@@ -462,42 +393,6 @@ namespace SteamPP.ViewModels
                         }
                     }
 
-                    // Validate GreenLuma files
-                    string? greenLumaAppListPath = null;
-                    if (settings.GreenLumaSubMode == GreenLumaMode.StealthAnyFolder)
-                    {
-                        var injectorDir = Path.GetDirectoryName(settings.DLLInjectorPath);
-                        if (!string.IsNullOrEmpty(injectorDir))
-                        {
-                            greenLumaAppListPath = Path.Combine(injectorDir, "AppList");
-                        }
-                    }
-                    else
-                    {
-                        var steamPath = _steamService.GetSteamPath();
-                        if (!string.IsNullOrEmpty(steamPath))
-                        {
-                            greenLumaAppListPath = Path.Combine(steamPath, "AppList");
-                        }
-                    }
-
-                    if (!string.IsNullOrEmpty(greenLumaAppListPath))
-                    {
-                        // Re-fetch items if needed or use existing list if we kept it
-                        foreach (var item in dbItems.Where(i => i.ItemType == LibraryItemType.GreenLuma))
-                        {
-                            var appListFile = Path.Combine(greenLumaAppListPath, item.AppId);
-                            var luaFile = Path.Combine(stpluginPath, $"{item.AppId}.lua");
-
-                            // If AppList file doesn't exist, remove from database
-                            // (We don't check for .lua file here as GreenLuma games may not have one)
-                            if (!File.Exists(appListFile))
-                            {
-                                _logger.Info($"Removing deleted GreenLuma file from library: {item.AppId}");
-                                _dbService.DeleteLibraryItem(item.AppId);
-                            }
-                        }
-                    }
                 }
 
                 // Load Steam games to get actual sizes
@@ -506,106 +401,47 @@ namespace SteamPP.ViewModels
 
                 // Load Steam app list once (cached for 7 days, very fast)
                 var steamAppList = await _steamApiService.GetAppListAsync();
-
-                // Load lua files (only in Lua/SteamTools mode)
-                if (settings.Mode != ToolMode.GreenLuma)
+                var luaGames = await Task.Run(() => _fileInstallService.GetInstalledGames());
+                foreach (var mod in luaGames)
                 {
-                    var luaGames = await Task.Run(() => _fileInstallService.GetInstalledGames());
-
-                    // Quick enrichment - use cache first, then Steam app list for names
-                    foreach (var mod in luaGames)
+                    // Try cache first
+                    var cachedManifest = _cacheService.GetCachedManifest(mod.AppId);
+                    if (cachedManifest != null)
                     {
-                        // Try cache first
-                        var cachedManifest = _cacheService.GetCachedManifest(mod.AppId);
-                        if (cachedManifest != null)
-                        {
-                            mod.Name = cachedManifest.Name;
-                            mod.Description = cachedManifest.Description;
-                            mod.Version = cachedManifest.Version;
-                            mod.IconUrl = cachedManifest.IconUrl;
-                        }
-                        else
-                        {
-                            // Get name from Steam app list (fast, no API call)
-                            mod.Name = _steamApiService.GetGameName(mod.AppId, steamAppList);
-                        }
-
-                        // Check if this game is actually installed via Steam
-                        if (steamGameDict.TryGetValue(mod.AppId, out var steamGame))
-                        {
-                            // Use actual Steam game size
-                            mod.SizeBytes = steamGame.SizeOnDisk;
-                        }
-                        else
-                        {
-                            // Game not installed, show 0 bytes
-                            mod.SizeBytes = 0;
-                        }
-
-                        var item = LibraryItem.FromGame(mod);
-                        if (iconCache.TryGetValue(item.AppId, out var cachedPath) && File.Exists(cachedPath))
-                        {
-                            item.CachedIconPath = cachedPath;
-                        }
-                        _allItems.Add(item);
+                        mod.Name = cachedManifest.Name;
+                        mod.Description = cachedManifest.Description;
+                        mod.Version = cachedManifest.Version;
+                        mod.IconUrl = cachedManifest.IconUrl;
                     }
+                    else
+                    {
+                        // Get name from Steam app list (fast, no API call)
+                        mod.Name = _steamApiService.GetGameName(mod.AppId, steamAppList);
+                    }
+
+                    // Check if this game is actually installed via Steam
+                    if (steamGameDict.TryGetValue(mod.AppId, out var steamGame))
+                    {
+                        // Use actual Steam game size
+                        mod.SizeBytes = steamGame.SizeOnDisk;
+                    }
+                    else
+                    {
+                        // Game not installed, show 0 bytes
+                        mod.SizeBytes = 0;
+                    }
+
+                    var item = LibraryItem.FromGame(mod);
+                    if (iconCache.TryGetValue(item.AppId, out var cachedPath) && File.Exists(cachedPath))
+                    {
+                        item.CachedIconPath = cachedPath;
+                    }
+                    _allItems.Add(item);
                 }
 
                 // Load icons in background with throttling
                 var luaItems = _allItems.Where(i => i.ItemType == LibraryItemType.Lua).ToList();
                 _ = LoadIconsForItemsAsync(luaItems);
-
-                // Load GreenLuma games (only in GreenLuma mode)
-                if (settings.Mode == ToolMode.GreenLuma)
-                {
-                    try
-                    {
-                        string? customAppListPath = null;
-                        if (settings.GreenLumaSubMode == GreenLumaMode.StealthAnyFolder)
-                        {
-                            var injectorDir = Path.GetDirectoryName(settings.DLLInjectorPath);
-                            if (!string.IsNullOrEmpty(injectorDir))
-                            {
-                                customAppListPath = Path.Combine(injectorDir, "AppList");
-                            }
-                        }
-
-                        var greenLumaGames = await Task.Run(() => _fileInstallService.GetGreenLumaGames(customAppListPath));
-
-                        // Get list of AppIds already loaded (lua files)
-                        var existingAppIds = _allItems.Select(i => i.AppId).ToHashSet();
-
-                        foreach (var glGame in greenLumaGames)
-                        {
-                            // Skip if already have a lua entry for this game
-                            if (!existingAppIds.Contains(glGame.AppId))
-                            {
-                                // Enrich with name from Steam app list if needed (if name is missing, generic, or just the AppID)
-                                if (string.IsNullOrEmpty(glGame.Name) ||
-                                    glGame.Name.StartsWith("App ") ||
-                                    glGame.Name == glGame.AppId)
-                                {
-                                    glGame.Name = _steamApiService.GetGameName(glGame.AppId, steamAppList);
-                                }
-
-                                var item = LibraryItem.FromGreenLumaGame(glGame);
-                                if (iconCache.TryGetValue(item.AppId, out var cachedPath) && File.Exists(cachedPath))
-                                {
-                                    item.CachedIconPath = cachedPath;
-                                }
-                                _allItems.Add(item);
-                            }
-                        }
-
-                        // Load GreenLuma game icons in background
-                        var glItems = _allItems.Where(i => i.ItemType == LibraryItemType.GreenLuma).ToList();
-                        _ = LoadIconsForItemsAsync(glItems);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error($"Failed to load GreenLuma games: {ex.Message}");
-                    }
-                }
 
                 // Add Steam games that don't have lua files
                 try
@@ -615,8 +451,8 @@ namespace SteamPP.ViewModels
                         StatusMessage = "No Steam games found. Check Steam installation.";
                     }
 
-                    // Get list of AppIds that already have lua files or GreenLuma entries
-                    var luaAppIds = _allItems.Where(i => i.ItemType == LibraryItemType.Lua || i.ItemType == LibraryItemType.GreenLuma)
+                    // Get list of AppIds that already have lua files
+                    var luaAppIds = _allItems.Where(i => i.ItemType == LibraryItemType.Lua)
                                              .Select(i => i.AppId)
                                              .ToHashSet();
 
@@ -646,7 +482,6 @@ namespace SteamPP.ViewModels
                 // Update statistics on UI thread (fast)
                 TotalLua = _allItems.Count(i => i.ItemType == LibraryItemType.Lua);
                 TotalSteamGames = _allItems.Count(i => i.ItemType == LibraryItemType.SteamGame);
-                TotalGreenLuma = _allItems.Count(i => i.ItemType == LibraryItemType.GreenLuma);
                 TotalSize = _allItems.Sum(i => i.SizeBytes);
 
                 ApplyFilters();
@@ -880,91 +715,6 @@ namespace SteamPP.ViewModels
             }
         }
 
-        // Method to instantly add GreenLuma game to library
-        public async Task AddGreenLumaGameToLibraryAsync(string appId)
-        {
-            try
-            {
-                _logger.Info($"Adding GreenLuma game {appId} to library instantly");
-
-                // Check if already exists
-                if (_allItems.Any(i => i.AppId == appId))
-                {
-                    _logger.Info($"Game {appId} already in library");
-                    return;
-                }
-
-                var settings = _settingsService.LoadSettings();
-                string? customAppListPath = null;
-                if (settings.GreenLumaSubMode == GreenLumaMode.StealthAnyFolder)
-                {
-                    var injectorDir = Path.GetDirectoryName(settings.DLLInjectorPath);
-                    if (!string.IsNullOrEmpty(injectorDir))
-                    {
-                        customAppListPath = Path.Combine(injectorDir, "AppList");
-                    }
-                }
-
-                var greenLumaGames = await Task.Run(() => _fileInstallService.GetGreenLumaGames(customAppListPath));
-                var glGame = greenLumaGames.FirstOrDefault(g => g.AppId == appId);
-
-                if (glGame == null)
-                {
-                    _logger.Warning($"Could not find GreenLuma game {appId}");
-                    return;
-                }
-
-                // Enrich with name if needed
-                var steamAppList = await _steamApiService.GetAppListAsync();
-                if (string.IsNullOrEmpty(glGame.Name) || glGame.Name.StartsWith("App ") || glGame.Name == glGame.AppId)
-                {
-                    glGame.Name = _steamApiService.GetGameName(appId, steamAppList);
-                }
-
-                // Create library item
-                var item = LibraryItem.FromGreenLumaGame(glGame);
-
-                // Add to memory
-                _allItems.Add(item);
-
-                // Save to database
-                _dbService.UpsertLibraryItem(item);
-
-                // Update UI
-                ApplyFilters();
-                TotalGreenLuma = _allItems.Count(i => i.ItemType == LibraryItemType.GreenLuma);
-
-                _logger.Info($"✓ GreenLuma game {appId} added to library");
-
-                // Load icon in background
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        var cdnIconUrl = _steamGamesService.GetSteamCdnIconUrl(appId);
-                        var iconPath = await _cacheService.GetSteamGameIconAsync(appId, null, cdnIconUrl);
-
-                        if (!string.IsNullOrEmpty(iconPath))
-                        {
-                            Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                item.CachedIconPath = iconPath;
-                            });
-                            _dbService.UpdateIconPath(appId, iconPath);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error($"Failed to load icon for {appId}: {ex.Message}");
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Failed to add GreenLuma game to library: {ex.Message}");
-            }
-        }
-
         private void ApplyFilters()
         {
             // Do filtering/sorting on background thread
@@ -974,7 +724,7 @@ namespace SteamPP.ViewModels
 
                 // Filter by type
                 if (!ShowLua)
-                    filtered = filtered.Where(i => i.ItemType != LibraryItemType.Lua && i.ItemType != LibraryItemType.GreenLuma);
+                    filtered = filtered.Where(i => i.ItemType != LibraryItemType.Lua);
                 if (!ShowSteamGames)
                     filtered = filtered.Where(i => i.ItemType != LibraryItemType.SteamGame);
 
@@ -1081,14 +831,12 @@ namespace SteamPP.ViewModels
             var itemType = item.ItemType switch
             {
                 LibraryItemType.Lua => "lua file",
-                LibraryItemType.GreenLuma => "GreenLuma game",
                 _ => "Steam game"
             };
 
             var message = item.ItemType switch
             {
                 LibraryItemType.Lua => "This will remove the lua file from your system.",
-                LibraryItemType.GreenLuma => "This will remove ALL related files:\n- All AppList entries (main app + DLC depots)\n- ACF file\n- Depot keys from Config.VDF\n- .lua file (if exists)",
                 _ => "This will delete the game files and remove it from Steam."
             };
 
@@ -1112,21 +860,6 @@ namespace SteamPP.ViewModels
                     {
                         success = await Task.Run(() => _steamGamesService.UninstallGame(item.AppId));
                     }
-                    else if (item.ItemType == LibraryItemType.GreenLuma)
-                    {
-                        var settings = _settingsService.LoadSettings();
-                        string? customAppListPath = null;
-                        if (settings.GreenLumaSubMode == GreenLumaMode.StealthAnyFolder)
-                        {
-                            var injectorDir = Path.GetDirectoryName(settings.DLLInjectorPath);
-                            if (!string.IsNullOrEmpty(injectorDir))
-                            {
-                                customAppListPath = Path.Combine(injectorDir, "AppList");
-                            }
-                        }
-
-                        success = await _fileInstallService.UninstallGreenLumaGameAsync(item.AppId, customAppListPath);
-                    }
 
                     if (success)
                     {
@@ -1138,7 +871,6 @@ namespace SteamPP.ViewModels
                         // Update statistics
                         TotalLua = _allItems.Count(i => i.ItemType == LibraryItemType.Lua);
                         TotalSteamGames = _allItems.Count(i => i.ItemType == LibraryItemType.SteamGame);
-                        TotalGreenLuma = _allItems.Count(i => i.ItemType == LibraryItemType.GreenLuma);
                         TotalSize = _allItems.Sum(i => i.SizeBytes);
 
                         _notificationService.ShowSuccess($"{item.Name} uninstalled successfully");
@@ -1257,7 +989,6 @@ namespace SteamPP.ViewModels
                 ApplyFilters();
                 TotalLua = _allItems.Count(i => i.ItemType == LibraryItemType.Lua);
                 TotalSteamGames = _allItems.Count(i => i.ItemType == LibraryItemType.SteamGame);
-                TotalGreenLuma = _allItems.Count(i => i.ItemType == LibraryItemType.GreenLuma);
                 TotalSize = _allItems.Sum(i => i.SizeBytes);
 
                 _notificationService.ShowSuccess($"{successCount} item(s) uninstalled successfully");
@@ -1840,64 +1571,6 @@ namespace SteamPP.ViewModels
             }
         }
 
-        private void LoadProfiles()
-        {
-            if (!IsGreenLumaMode)
-            {
-                Profiles.Clear();
-                ActiveProfile = null;
-                HasUnappliedChanges = false;
-                return;
-            }
-
-            try
-            {
-                var allProfiles = _profileService.GetAllProfiles();
-                Profiles = new ObservableCollection<GreenLumaProfile>(allProfiles);
-
-                var active = _profileService.GetActiveProfile();
-                ActiveProfile = Profiles.FirstOrDefault(p => p.Id == active?.Id);
-
-                UpdateHasUnappliedChanges();
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Error loading profiles: {ex.Message}");
-            }
-        }
-
-        private void UpdateHasUnappliedChanges()
-        {
-            if (!IsGreenLumaMode || ActiveProfile == null)
-            {
-                HasUnappliedChanges = false;
-                return;
-            }
-
-            HasUnappliedChanges = !_profileService.IsProfileApplied(ActiveProfile.Id);
-        }
-
-        partial void OnActiveProfileChanged(GreenLumaProfile? value)
-        {
-            if (value != null && IsGreenLumaMode)
-            {
-                _profileService.SetActiveProfile(value.Id);
-                UpdateHasUnappliedChanges();
-            }
-        }
-
-        [RelayCommand]
-        private void OpenProfileManager()
-        {
-            var dialog = new ProfileManagerDialog(_profileService, _steamApiService);
-            dialog.Owner = Application.Current.MainWindow;
-
-            if (dialog.ShowDialog() == true && dialog.ProfilesChanged)
-            {
-                LoadProfiles();
-            }
-        }
-
         public void Dispose()
         {
             Dispose(true);
@@ -1912,7 +1585,6 @@ namespace SteamPP.ViewModels
             {
                 // Unsubscribe from events to prevent memory leaks
                 _refreshService.GameInstalled -= OnGameInstalled;
-                _refreshService.GreenLumaGameInstalled -= OnGreenLumaGameInstalled;
 
                 // Clear image cache
                 _imageCacheService?.ClearCache();

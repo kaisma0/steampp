@@ -15,11 +15,7 @@ namespace SteamPP.ViewModels
             OpenUrl("https://www.steamtools.net/download.html");
         }
 
-        [RelayCommand]
-        private void OpenGreenLuma()
-        {
-            OpenUrl("https://cs.rin.ru/forum/viewtopic.php?p=2063857#p2063857");
-        }
+
 
         [RelayCommand]
         private void OpenFixes()

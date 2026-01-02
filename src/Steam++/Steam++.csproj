@@ -9,7 +9,7 @@
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <AssemblyName>Steam++</AssemblyName>
     <RootNamespace>SteamPP</RootNamespace>
-    <Version Condition="'$(Version)' == ''">2025.12.07</Version>
+    <Version Condition="'$(Version)' == ''">2026.01.01</Version>
     <Authors>kaisma0</Authors>
     <Description>Steam++</Description>
     <Product>Steam++</Product>
@@ -40,9 +40,9 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3650.58" />
-    <PackageReference Include="protobuf-net" Version="3.2.52" />
+    <PackageReference Include="protobuf-net" Version="3.2.56" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
-    <PackageReference Include="SteamKit2" Version="3.2.0" />
+    <PackageReference Include="SteamKit2" Version="3.3.1" />
     <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.183">
       <PrivateAssets>all</PrivateAssets>

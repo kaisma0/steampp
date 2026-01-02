@@ -74,13 +74,11 @@ namespace SteamPP
 
                     services.AddSingleton<BackupService>();
                     services.AddSingleton<DepotDownloadService>();
-                    services.AddSingleton<SteamLibraryService>();
                     services.AddSingleton<ThemeService>();
                     services.AddSingleton<ProtocolHandlerService>();
                     services.AddSingleton<LibraryDatabaseService>();
                     services.AddSingleton<LibraryRefreshService>();
                     services.AddSingleton<RecentGamesService>();
-                    services.AddSingleton<ProfileService>();
                     services.AddSingleton<ManifestStorageService>();
                     services.AddSingleton<LuaFileManager>();
 
@@ -90,7 +88,7 @@ namespace SteamPP
                     services.AddTransient<LuaInstallerViewModel>();
                     services.AddTransient<LibraryViewModel>();
                     services.AddTransient<StoreViewModel>();
-                    services.AddTransient<DownloadsViewModel>();
+                    services.AddSingleton<DownloadsViewModel>();
                     services.AddSingleton<ToolsViewModel>();
                     services.AddTransient<SettingsViewModel>();
                     services.AddTransient<SupportViewModel>();
@@ -189,6 +187,9 @@ namespace SteamPP
             {
                 _ = CheckForUpdatesAsync(settings.AutoUpdate);
             }
+
+            // Force initialization of DownloadsViewModel to ensure auto-install listeners are active
+            _host.Services.GetRequiredService<DownloadsViewModel>();
 
             base.OnStartup(e);
         }

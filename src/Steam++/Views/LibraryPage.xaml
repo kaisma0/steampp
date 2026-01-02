@@ -60,12 +60,11 @@
 
             <!-- Statistics Dashboard -->
             <WrapPanel Orientation="Horizontal">
-                    <!-- Lua Card (Lua/SteamTools Mode) -->
+                    <!-- Lua Card -->
                     <Border Background="{DynamicResource CardBackgroundBrush}"
                             Padding="12,8"
                             CornerRadius="8"
-                            Margin="0,0,8,8"
-                            Visibility="{Binding IsGreenLumaMode, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                            Margin="0,0,8,8">
                         <StackPanel>
                             <TextBlock Text="{Binding TotalLua}"
                                        FontSize="20"
@@ -73,25 +72,6 @@
                                        Foreground="{DynamicResource AccentBrush}"
                                        HorizontalAlignment="Center"/>
                             <TextBlock Text="Lua"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- GreenLuma Card (GreenLuma Mode) -->
-                    <Border Background="{DynamicResource CardBackgroundBrush}"
-                            Padding="12,8"
-                            CornerRadius="8"
-                            Margin="0,0,8,8"
-                            Visibility="{Binding IsGreenLumaMode, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <StackPanel>
-                            <TextBlock Text="{Binding TotalGreenLuma}"
-                                       FontSize="20"
-                                       FontWeight="Bold"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Text="GreenLuma"
                                        FontSize="11"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        HorizontalAlignment="Center"/>
@@ -226,39 +206,6 @@
                     Height="28"
                     Padding="10,3"
                     Margin="0,0,10,0"/>
-
-            <!-- Profile Selector (GreenLuma mode only) -->
-            <ComboBox Grid.Column="5"
-                      ItemsSource="{Binding Profiles}"
-                      SelectedItem="{Binding ActiveProfile}"
-                      DisplayMemberPath="Name"
-                      Width="140"
-                      Height="28"
-                      Margin="0,0,5,0"
-                      Padding="8,3"
-                      FontSize="12"
-                      ToolTip="Select active profile"
-                      Visibility="{Binding IsGreenLumaMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-
-            <Button Grid.Column="6"
-                    Content="Profiles"
-                    Command="{Binding OpenProfileManagerCommand}"
-                    Style="{StaticResource SecondaryButtonStyle}"
-                    Height="28"
-                    Padding="10,3"
-                    Margin="0,0,5,0"
-                    ToolTip="Manage GreenLuma profiles"
-                    Visibility="{Binding IsGreenLumaMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-
-            <TextBlock Grid.Column="7"
-                       Text="●"
-                       Foreground="Orange"
-                       FontSize="18"
-                       FontWeight="Bold"
-                       VerticalAlignment="Center"
-                       Margin="0,0,0,0"
-                       ToolTip="Profile not applied to AppList - click Profiles to apply"
-                       Visibility="{Binding HasUnappliedChanges, Converter={StaticResource BooleanToVisibilityConverter}}"/>
         </Grid>
 
         <!-- Batch Actions Bar (Visible in Select Mode) -->
@@ -339,15 +286,19 @@
                                 </Style>
                             </Border.Style>
                             <Border.ContextMenu>
-                                <ContextMenu DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource Self}}">
+                                <ContextMenu Style="{StaticResource ModernContextMenuStyle}"
+                                             DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource Self}}">
                                     <MenuItem Header="📋 View Details"
+                                              Style="{StaticResource ModernMenuItemStyle}"
                                               Command="{Binding ShowDetailsCommand}"
                                               CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                     <MenuItem Header="📁 Open in Explorer"
+                                              Style="{StaticResource ModernMenuItemStyle}"
                                               Command="{Binding OpenInExplorerCommand}"
                                               CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                    <Separator/>
+                                    <Separator Style="{StaticResource ModernSeparatorStyle}"/>
                                     <MenuItem Header="🗑️ Uninstall"
+                                              Style="{StaticResource ModernMenuItemStyle}"
                                               Command="{Binding UninstallItemCommand}"
                                               CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                 </ContextMenu>
