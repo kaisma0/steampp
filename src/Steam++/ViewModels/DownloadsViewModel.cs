@@ -72,26 +72,10 @@ namespace SteamPP.ViewModels
 
         private void OnDownloadCompleted(object? sender, DownloadItem downloadItem)
         {
-            Application.Current.Dispatcher.Invoke(async () =>
+            Application.Current.Dispatcher.Invoke(() =>
             {
                 // Auto-refresh the downloaded files list when a download completes
                 RefreshDownloadedFiles();
-
-                // Skip auto-install for DepotDownloader mode (files are downloaded directly, not as zip)
-                if (downloadItem.IsDepotDownloaderMode)
-                {
-                    return;
-                }
-
-                // Always run install flow after API download completes (if setting enabled)
-                var settings = _settingsService.LoadSettings();
-                var destPath = downloadItem.DestinationPath;
-                var exists = !string.IsNullOrEmpty(destPath) && File.Exists(destPath);
-
-                if (settings.AutoInstallAfterDownload && exists)
-                {
-                    await InstallFileInternal(destPath, isAutoInstall: true);
-                }
             });
         }
 
@@ -465,18 +449,10 @@ namespace SteamPP.ViewModels
                 }
 
 
+
                 StatusMessage = $"Installing files...";
                 await _fileInstallService.InstallFromZipAsync(filePath, message => StatusMessage = message);
-
-                var luaContentForStorage = _downloadService.ExtractLuaContentFromZip(filePath, appId);
-                var luaParserForStorage = new LuaParser();
-                var manifestId = luaParserForStorage.GetPrimaryManifestId(luaContentForStorage, appId);
-                var manifestIds = luaParserForStorage.ParseManifestIds(luaContentForStorage);
-                var depotIdList = manifestIds.Keys.Select(k => uint.TryParse(k, out var id) ? id : 0).Where(id => id > 0).ToList();
-
-                var installPath = _steamService.GetStPluginPath() ?? "";
-                _manifestStorageService.StoreManifest(appId, appId, manifestId, installPath, depotIdList);
-                _logger.Info($"Stored manifest info for {appId} with manifestId {manifestId}");
+                // Note: Manifest storage is now handled internally by InstallFromZipAsync
 
                 _notificationService.ShowSuccess($"{fileName} has been installed successfully! Restart Steam for changes to take effect.", "Installation Complete");
                 StatusMessage = $"{fileName} installed successfully";

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace SteamPP.Services
@@ -14,13 +15,15 @@ namespace SteamPP.Services
         private readonly LoggerService _logger;
         private readonly ISettingsService _settingsService;
         private readonly LuaFileManager _luaFileManager;
+        private readonly ManifestStorageService _manifestStorageService;
 
-        public FileInstallService(SteamService steamService, LoggerService logger, ISettingsService settingsService, LuaFileManager luaFileManager)
+        public FileInstallService(SteamService steamService, LoggerService logger, ISettingsService settingsService, LuaFileManager luaFileManager, ManifestStorageService manifestStorageService)
         {
             _steamService = steamService;
             _logger = logger;
             _settingsService = settingsService;
             _luaFileManager = luaFileManager;
+            _manifestStorageService = manifestStorageService;
         }
 
         public void TryAutoEnableUpdates(string appId)
@@ -128,6 +131,27 @@ namespace SteamPP.Services
 
                             File.Copy(manifestFile, destPath, true);
                         }
+                    }
+
+                    // Store manifest info for update tracking
+                    progressCallback?.Invoke("Updating manifest index...");
+                    try
+                    {
+                        foreach (var luaFile in luaFiles)
+                        {
+                            var appId = Path.GetFileNameWithoutExtension(luaFile);
+                            var luaContent = await File.ReadAllTextAsync(luaFile);
+                            var luaParser = new LuaParser();
+                            var manifestId = luaParser.GetPrimaryManifestId(luaContent, appId);
+                            var manifestIds = luaParser.ParseManifestIds(luaContent);
+                            var depotIdList = manifestIds.Keys.Select(k => uint.TryParse(k, out var id) ? id : 0).Where(id => id > 0).ToList();
+                            _manifestStorageService.StoreManifest(appId, appId, manifestId, stpluginPath, depotIdList);
+                            _logger.Info($"Stored manifest info for app {appId}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warning($"Failed to store manifest info: {ex.Message}");
                     }
 
                     progressCallback?.Invoke("Installation complete!");

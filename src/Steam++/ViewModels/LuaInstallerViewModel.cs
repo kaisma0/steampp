@@ -417,15 +417,6 @@ namespace SteamPP.ViewModels
                     // Install ZIP (contains .lua and .manifest files)
                     await _fileInstallService.InstallFromZipAsync(SelectedFilePath, message => StatusMessage = message);
 
-                    // Store manifest info for update tracking
-                    var luaContentForStorage = _downloadService.ExtractLuaContentFromZip(SelectedFilePath, appId);
-                    var luaParserForStorage = new LuaParser();
-                    var manifestId = luaParserForStorage.GetPrimaryManifestId(luaContentForStorage, appId);
-                    var manifestIds = luaParserForStorage.ParseManifestIds(luaContentForStorage);
-                    var depotIdList = manifestIds.Keys.Select(k => uint.TryParse(k, out var id) ? id : 0).Where(id => id > 0).ToList();
-                    var installPath = _steamService.GetStPluginPath() ?? "";
-                    _manifestStorageService.StoreManifest(appId, appId, manifestId, installPath, depotIdList);
-
                     // Auto-enable updates if configured (SteamTools mode only)
                     _fileInstallService.TryAutoEnableUpdates(appId);
 
@@ -507,22 +498,6 @@ namespace SteamPP.ViewModels
                             installedAppIds.Add(appId);
                             successCount++;
                             _fileInstallService.TryAutoEnableUpdates(appId);
-
-                            // Store manifest info
-                            try
-                            {
-                                var luaContentForStorage = _downloadService.ExtractLuaContentFromZip(file, appId);
-                                var luaParserForStorage = new LuaParser();
-                                var manifestId = luaParserForStorage.GetPrimaryManifestId(luaContentForStorage, appId);
-                                var manifestIds = luaParserForStorage.ParseManifestIds(luaContentForStorage);
-                                var depotIdList = manifestIds.Keys.Select(k => uint.TryParse(k, out var id) ? id : 0).Where(id => id > 0).ToList();
-                                var installPath = _steamService.GetStPluginPath() ?? "";
-                                _manifestStorageService.StoreManifest(appId, appId, manifestId, installPath, depotIdList);
-                            }
-                            catch (Exception msEx)
-                            {
-                                _logger.Error($"Failed to store manifest for {appId}: {msEx.Message}");
-                            }
                         }
                         else if (file.EndsWith(".lua", StringComparison.OrdinalIgnoreCase))
                         {
