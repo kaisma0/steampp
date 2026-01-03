@@ -88,10 +88,13 @@ namespace SteamPP
                     services.AddTransient<LuaInstallerViewModel>();
                     services.AddTransient<LibraryViewModel>();
                     services.AddTransient<StoreViewModel>();
-                    services.AddSingleton<DownloadsViewModel>();
+                    services.AddTransient<DownloadsViewModel>();
                     services.AddSingleton<ToolsViewModel>();
                     services.AddTransient<SettingsViewModel>();
                     services.AddTransient<SupportViewModel>();
+
+                    // Factory for lazy DownloadsViewModel resolution
+                    services.AddTransient<Func<DownloadsViewModel>>(sp => () => sp.GetRequiredService<DownloadsViewModel>());
 
                     // Views
                     services.AddSingleton<MainWindow>();
@@ -187,9 +190,6 @@ namespace SteamPP
             {
                 _ = CheckForUpdatesAsync(settings.AutoUpdate);
             }
-
-            // Force initialization of DownloadsViewModel to ensure auto-install listeners are active
-            _host.Services.GetRequiredService<DownloadsViewModel>();
 
             base.OnStartup(e);
         }

@@ -72,26 +72,10 @@ namespace SteamPP.ViewModels
 
         private void OnDownloadCompleted(object? sender, DownloadItem downloadItem)
         {
-            Application.Current.Dispatcher.Invoke(async () =>
+            Application.Current.Dispatcher.Invoke(() =>
             {
                 // Auto-refresh the downloaded files list when a download completes
                 RefreshDownloadedFiles();
-
-                // Skip auto-install for DepotDownloader mode (files are downloaded directly, not as zip)
-                if (downloadItem.IsDepotDownloaderMode)
-                {
-                    return;
-                }
-
-                // Always run install flow after API download completes (if setting enabled)
-                var settings = _settingsService.LoadSettings();
-                var destPath = downloadItem.DestinationPath;
-                var exists = !string.IsNullOrEmpty(destPath) && File.Exists(destPath);
-
-                if (settings.AutoInstallAfterDownload && exists)
-                {
-                    await InstallFileInternal(destPath, isAutoInstall: true);
-                }
             });
         }
 

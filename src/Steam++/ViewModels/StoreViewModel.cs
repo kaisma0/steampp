@@ -24,6 +24,7 @@ namespace SteamPP.ViewModels
         private readonly SteamService _steamService;
         private readonly FileInstallService _fileInstallService;
         private readonly ManifestStorageService _manifestStorageService;
+        private readonly Func<DownloadsViewModel> _downloadsViewModelFactory;
         private readonly SemaphoreSlim _iconLoadSemaphore = new SemaphoreSlim(10, 10); // Max 10 concurrent downloads
 
         [ObservableProperty]
@@ -83,7 +84,8 @@ namespace SteamPP.ViewModels
             NotificationService notificationService,
             SteamService steamService,
             FileInstallService fileInstallService,
-            ManifestStorageService manifestStorageService)
+            ManifestStorageService manifestStorageService,
+            Func<DownloadsViewModel> downloadsViewModelFactory)
         {
             _manifestApiService = manifestApiService;
             _downloadService = downloadService;
@@ -93,6 +95,7 @@ namespace SteamPP.ViewModels
             _steamService = steamService;
             _fileInstallService = fileInstallService;
             _manifestStorageService = manifestStorageService;
+            _downloadsViewModelFactory = downloadsViewModelFactory;
 
             // Auto-load games on startup
             _ = InitializeAsync();
@@ -528,34 +531,40 @@ namespace SteamPP.ViewModels
 
                 StatusMessage = $"Downloading: {game.GameName}";
 
-                var steamPath = settings.SteamPath;
-                if (string.IsNullOrEmpty(steamPath))
+                // Download the zip file
+                var zipFilePath = await _downloadService.DownloadGameFileOnlyAsync(manifest, settings.DownloadsPath, settings.ApiKey);
+
+                // Auto-install if setting is enabled
+                if (settings.AutoInstallAfterDownload)
                 {
-                    steamPath = _steamService.GetSteamPath();
-                }
+                    if (settings.Mode == ToolMode.DepotDownloader)
+                    {
+                        // DepotDownloader mode: trigger the interactive download flow
+                        StatusMessage = $"Starting download for {game.GameName}...";
+                        var downloadsVm = _downloadsViewModelFactory();
+                        await downloadsVm.InstallFileCommand.ExecuteAsync(zipFilePath);
+                    }
+                    else
+                    {
+                        // SteamTools mode: direct install
+                        StatusMessage = $"Installing {game.GameName}...";
+                        await _fileInstallService.InstallFromZipAsync(zipFilePath, message => StatusMessage = message);
+                        _fileInstallService.TryAutoEnableUpdates(game.GameId);
+                        StatusMessage = $"{game.GameName} downloaded and installed successfully";
 
-                if (!string.IsNullOrEmpty(steamPath) && System.IO.Directory.Exists(steamPath))
-                {
-                    await _downloadService.DownloadGameAsync(manifest, settings.DownloadsPath, settings.ApiKey, steamPath);
-                    
-                    // Auto-enable updates if configured (SteamTools mode only)
-                    _fileInstallService.TryAutoEnableUpdates(game.GameId);
-
-                    StatusMessage = $"{game.GameName} downloaded and installed successfully";
-
-                    MessageBoxHelper.Show(
-                        $"{game.GameName} has been downloaded and installed!",
-                        "Installation Complete",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                        MessageBoxHelper.Show(
+                            $"{game.GameName} has been downloaded and installed!",
+                            "Installation Complete",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
                 }
                 else
                 {
-                    var zipFilePath = await _downloadService.DownloadGameFileOnlyAsync(manifest, settings.DownloadsPath, settings.ApiKey);
                     StatusMessage = $"{game.GameName} downloaded successfully";
 
                     MessageBoxHelper.Show(
-                        $"{game.GameName} has been downloaded!\n\nGo to the Downloads page to install it manually or configure Steam Path in settings.",
+                        $"{game.GameName} has been downloaded!\n\nGo to the Downloads page to install it manually.",
                         "Download Complete",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
@@ -627,13 +636,41 @@ namespace SteamPP.ViewModels
                 StatusMessage = $"Downloading update: {game.GameName}";
                 var zipFilePath = await _downloadService.DownloadGameFileOnlyAsync(manifest, settings.DownloadsPath, settings.ApiKey);
 
-                StatusMessage = $"{game.GameName} update downloaded";
+                // Auto-install if setting is enabled
+                if (settings.AutoInstallAfterDownload)
+                {
+                    if (settings.Mode == ToolMode.DepotDownloader)
+                    {
+                        // DepotDownloader mode: trigger the interactive download flow
+                        StatusMessage = $"Starting update download for {game.GameName}...";
+                        var downloadsVm = _downloadsViewModelFactory();
+                        await downloadsVm.InstallFileCommand.ExecuteAsync(zipFilePath);
+                    }
+                    else
+                    {
+                        // SteamTools mode: direct install
+                        StatusMessage = $"Installing update for {game.GameName}...";
+                        await _fileInstallService.InstallFromZipAsync(zipFilePath, message => StatusMessage = message);
+                        _fileInstallService.TryAutoEnableUpdates(game.GameId);
+                        StatusMessage = $"{game.GameName} updated successfully";
 
-                MessageBoxHelper.Show(
-                    $"Update for {game.GameName} has been downloaded!\n\nGo to the Downloads page to install the update.\n\nNote: Delta downloading will only download changed files.",
-                    "Update Downloaded",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                        MessageBoxHelper.Show(
+                            $"Update for {game.GameName} has been downloaded and installed!",
+                            "Update Complete",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
+                }
+                else
+                {
+                    StatusMessage = $"{game.GameName} update downloaded";
+
+                    MessageBoxHelper.Show(
+                        $"Update for {game.GameName} has been downloaded!\n\nGo to the Downloads page to install the update.\n\nNote: Delta downloading will only download changed files.",
+                        "Update Downloaded",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
 
                 game.HasUpdate = false;
             }

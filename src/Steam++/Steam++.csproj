@@ -9,7 +9,7 @@
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <AssemblyName>Steam++</AssemblyName>
     <RootNamespace>SteamPP</RootNamespace>
-    <Version Condition="'$(Version)' == ''">2026.01.01</Version>
+    <Version Condition="'$(Version)' == ''">2026.01.03</Version>
     <Authors>kaisma0</Authors>
     <Description>Steam++</Description>
     <Product>Steam++</Product>
@@ -18,9 +18,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <OutputPath>..\..\bin\$(Configuration)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <!-- Self-contained single-file publishing -->
+    <!-- Framework-dependent single-file publishing (requires .NET installed) -->
     <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
+    <SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
