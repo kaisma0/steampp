@@ -89,7 +89,8 @@ namespace SteamPP.Services
                 DownloadUrl = $"{manifest.DownloadUrl}?api_key={apiKey}",
                 StartTime = DateTime.Now,
                 Status = DownloadStatus.Queued,
-                TotalBytes = manifest.Size
+                TotalBytes = manifest.Size,
+                HeaderImageUrl = $"https://cdn.cloudflare.steamstatic.com/steam/apps/{manifest.AppId}/header.jpg"
             };
 
             var fileName = $"{manifest.AppId}.zip";
@@ -195,24 +196,38 @@ namespace SteamPP.Services
                         int bytesRead;
                         var lastUpdate = DateTime.Now;
 
+                        long lastBytesRead = 0;
+
                         _logger.Debug("Starting download loop...");
                         while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, cts.Token)) > 0)
                         {
                             await fileStream.WriteAsync(buffer, 0, bytesRead, cts.Token);
                             totalBytesRead += bytesRead;
 
-                            // Throttle UI updates to every 100ms
+                            // Throttle UI updates to every 500ms
                             var now = DateTime.Now;
-                            if ((now - lastUpdate).TotalMilliseconds >= 100)
+                            var timeSpan = now - lastUpdate;
+                            if (timeSpan.TotalMilliseconds >= 500)
                             {
                                 var currentBytesRead = totalBytesRead;
                                 var progress = (double)currentBytesRead / totalBytes * 100;
+                                
+                                // Calculate speed
+                                var bytesDiff = currentBytesRead - lastBytesRead;
+                                var speed = (long)(bytesDiff / timeSpan.TotalSeconds);
+                                lastBytesRead = currentBytesRead;
+
                                 // Progress logging removed to reduce log spam
                                 _ = App.Current.Dispatcher.InvokeAsync(() =>
                                 {
                                     downloadItem.DownloadedBytes = currentBytesRead;
                                     downloadItem.Progress = progress;
                                     downloadItem.StatusMessage = $"Downloading... {progress:F1}%";
+                                    
+                                    // Update speed metrics
+                                    downloadItem.NetworkSpeed = speed;
+                                    downloadItem.DiskSpeed = speed; // Writing at same rate as download
+                                    downloadItem.RecordSpeedSample();
                                 });
                                 lastUpdate = now;
                             }
@@ -425,7 +440,8 @@ namespace SteamPP.Services
                 DownloadUrl = $"{manifest.DownloadUrl}?api_key={apiKey}",
                 StartTime = DateTime.Now,
                 Status = DownloadStatus.Queued,
-                TotalBytes = manifest.Size
+                TotalBytes = manifest.Size,
+                HeaderImageUrl = $"https://cdn.cloudflare.steamstatic.com/steam/apps/{manifest.AppId}/header.jpg"
             };
 
             var fileName = $"{manifest.AppId}.zip";
@@ -540,24 +556,38 @@ namespace SteamPP.Services
                     int bytesRead;
                     var lastUpdate = DateTime.Now;
 
+                    long lastBytesRead = 0;
+
                     _logger.Debug("FileOnly: Starting download loop...");
                     while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, cts.Token)) > 0)
                     {
                         await fileStream.WriteAsync(buffer, 0, bytesRead, cts.Token);
                         totalBytesRead += bytesRead;
 
-                        // Throttle UI updates to every 100ms
+                        // Throttle UI updates to every 500ms
                         var now = DateTime.Now;
-                        if ((now - lastUpdate).TotalMilliseconds >= 100)
+                        var timeSpan = now - lastUpdate;
+                        if (timeSpan.TotalMilliseconds >= 500)
                         {
                             var currentBytesRead = totalBytesRead;
                             var progress = (double)currentBytesRead / totalBytes * 100;
+                            
+                            // Calculate speed
+                            var bytesDiff = currentBytesRead - lastBytesRead;
+                            var speed = (long)(bytesDiff / timeSpan.TotalSeconds);
+                            lastBytesRead = currentBytesRead;
+
                             // Progress logging removed to reduce log spam
                             _ = App.Current.Dispatcher.InvokeAsync(() =>
                             {
                                 downloadItem.DownloadedBytes = currentBytesRead;
                                 downloadItem.Progress = progress;
                                 downloadItem.StatusMessage = $"Downloading... {progress:F1}%";
+
+                                // Update speed metrics
+                                downloadItem.NetworkSpeed = speed;
+                                downloadItem.DiskSpeed = speed; // Writing at same rate as download
+                                downloadItem.RecordSpeedSample();
                             });
                             lastUpdate = now;
                         }
